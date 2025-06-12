@@ -16,4 +16,6 @@ arrayset.ml
 arrayset.mli
 priority_queue.ml
 priority_queue.mli
+skip_list.ml
+skip_list.mli
 

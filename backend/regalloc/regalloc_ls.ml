@@ -145,6 +145,8 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         | Stack _ | Unknown -> ()
       in
       DLL.iter intervals.active_dll ~f:set_not_available_if_valid_phys_reg;
+      Interval.DescEndList.iter intervals.active_sl
+        ~f:set_not_available_if_valid_phys_reg;
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
         | Reg r ->
@@ -156,6 +158,10 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       in
       DLL.iter intervals.inactive_dll ~f:remove_bound_overlapping;
       DLL.iter intervals.fixed_dll ~f:remove_bound_overlapping;
+      (* note: already removed, for transition *)
+      Interval.DescEndList.iter intervals.inactive_sl
+        ~f:remove_bound_overlapping;
+      Interval.DescEndList.iter intervals.fixed_sl ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
         then Misc.fatal_error "No_free_register should have been raised earlier"
@@ -163,6 +169,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         then (
           reg.loc <- Reg (first_available + idx);
           Interval.DLL.insert_sorted intervals.active_dll interval;
+          Interval.DescEndList.insert intervals.active_sl interval;
           if debug
           then (
             indent ();
@@ -179,25 +186,54 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
   let reg = interval.reg in
   let reg_class = Reg_class.of_machtype reg.typ in
   let intervals = State.active state ~reg_class in
+  (* will change to `match Interval.DescEndList.hd intervals.active_sl with` *)
   match DLL.hd_cell intervals.active_dll with
   | Some hd_cell ->
+    let hd_cell' = Interval.DescEndList.hd_cell intervals.active_sl in
+    if Option.is_none hd_cell'
+    then fatal "Regalloc_ls.allocate_blocked_register: missing skip list head";
+    let hd_cell' = Option.get hd_cell' in
     let hd = DLL.value hd_cell in
+    let hd' = Interval.DescEndList.value hd_cell' in
+    if not (Interval.equal hd hd')
+    then
+      fatal
+        "Regalloc_ls.allocate_blocked_register: inconsistent heads (dll=%a vs \
+         sl=%a)"
+        Interval.print hd Interval.print hd';
     let chk r =
       assert (same_reg_class r.Interval.reg hd.Interval.reg);
       Reg.same_loc r.Interval.reg hd.Interval.reg && Interval.overlap r interval
     in
-    if hd.end_ > interval.end_
-       && not
-            (DLL.exists ~f:chk intervals.fixed_dll
-            || DLL.exists ~f:chk intervals.inactive_dll)
+    let dll_exists =
+      DLL.exists ~f:chk intervals.fixed_dll
+      || DLL.exists ~f:chk intervals.inactive_dll
+    in
+    let sl_exists =
+      Interval.DescEndList.exists ~f:chk intervals.fixed_sl
+      || Interval.DescEndList.exists ~f:chk intervals.inactive_sl
+    in
+    if not (Bool.equal dll_exists sl_exists)
+    then
+      fatal
+        "Regalloc_ls.allocate_blocked_register: inconsistent lists \
+         (dll_exists=%B sl_exists=%B)"
+        dll_exists sl_exists;
+    if hd.end_ > interval.end_ && not dll_exists
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
       DLL.delete_curr hd_cell;
       Interval.DLL.insert_sorted intervals.active_dll interval;
+      Interval.DescEndList.delete_curr hd_cell';
+      Interval.DescEndList.insert intervals.active_sl interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
-  | None -> allocate_stack_slot reg
+  | None ->
+    if Option.is_some (Interval.DescEndList.hd_cell intervals.active_sl)
+    then
+      fatal "Regalloc_ls.allocate_blocked_register: unexpected skip list head";
+    allocate_stack_slot reg
 
 let reg_reinit () =
   List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
@@ -218,7 +254,9 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     log "main, round #%d" round;
     indent ());
   reg_reinit ();
+  State.check_consistency state "main/start";
   build_intervals state cfg_with_infos;
+  State.check_consistency state "main/after build_intervals";
   State.invariant_intervals state cfg_with_infos;
   State.invariant_active state;
   if debug then snapshot_for_fatal := Some (State.for_fatal state);
@@ -229,18 +267,22 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   let spilled =
     State.fold_intervals state ~init:Reg.Set.empty
       ~f:(fun acc (interval : Interval.t) ->
+        State.check_consistency state "main/before release";
         (* Equivalent to [walk_interval] in "backend/linscan.ml".*)
         let pos = interval.begin_ land lnot 1 in
         if debug
         then log_interval ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
         State.release_expired_intervals state ~pos;
+        State.check_consistency state "main/after release";
         let spilled =
           match allocate_free_register state interval with
-          | spilled -> spilled
+          | spilled ->
+            State.check_consistency state "main/after allocate_free_register";
+            spilled
           | exception No_free_register ->
             allocate_blocked_register state interval
         in
-        State.invariant_active state;
+        State.check_consistency state "main/after allocation";
         match spilled with
         | Not_spilling -> acc
         | Spilling reg -> Reg.Set.add reg acc)
@@ -264,14 +306,17 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
       (module Utils)
       ~on_fatal_callback:(fun () ->
         Option.iter
-          (fun (intervals, active) ->
+          (fun (intervals_dll, intervals_sl, active) ->
             Format.eprintf "Regalloc_ls.run (on_fatal):";
             Format.eprintf "\n\nactives:\n";
             Reg_class.Tbl.iter active ~f:(fun reg_class a ->
                 Format.eprintf "class %a:\n %a\n" Reg_class.print reg_class
                   ClassIntervals.print a);
-            Format.eprintf "\n\nintervals:\n";
-            DLL.iter intervals ~f:(fun i ->
+            Format.eprintf "\n\nintervals_dll:\n";
+            DLL.iter intervals_dll ~f:(fun i ->
+                Format.eprintf "- %a\n" Interval.print i);
+            Format.eprintf "\n\nintervals_sl:\n";
+            Interval.AscBeginList.iter intervals_sl ~f:(fun i ->
                 Format.eprintf "- %a\n" Interval.print i);
             Format.eprintf "\n%!")
           !snapshot_for_fatal;
