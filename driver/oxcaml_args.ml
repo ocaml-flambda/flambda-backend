@@ -45,7 +45,8 @@ let mk_regalloc f =
 let mk_regalloc_linscan_threshold f =
   "-regalloc-linscan-threshold",
   Arg.Int f,
-  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"Oxcaml_flags.default_regalloc_linscan_threshold)
+  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"
+    Oxcaml_flags.default_regalloc_linscan_threshold)
 
 let mk_regalloc_param f =
   "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"

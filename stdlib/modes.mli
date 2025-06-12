@@ -12,10 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Modes are an experimental compiler feature, supported in OxCaml.
-
-    This module provides types that wrap a value in a different mode from its context. In
-    the standard OCaml compiler, these types are all no-op wrappers. *)
+(** This module provides types that wrap a value in a different mode from its
+    context. In the standard OCaml compiler, these types are all no-op
+    wrappers. *)
 
 module Global : sig
   type 'a t = { global : 'a @@ global } [@@unboxed]

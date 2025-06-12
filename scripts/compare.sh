@@ -923,7 +923,7 @@ check_dynlink_cma_and_cmxa () {
 
 echo "** Immediate subdirs of installation root"
 
-# The OxCaml does not build or install man pages.
+# OxCaml does not build or install man pages.
 upstream_subdirs=$(ls -1 $upstream_tree | grep -v '^man$')
 oxcaml_subdirs=$(ls -1 $oxcaml_tree)
 

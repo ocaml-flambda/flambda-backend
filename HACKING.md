@@ -316,7 +316,7 @@ local switch at the root of the tree, in which case the prefix will be
 a global switch. For a global switch named `oxcaml`, the prefix will be
 `$(opam var root)/oxcaml`.
 
-The OxCaml must then be configured with this switch as prefix:
+OxCaml must then be configured with this switch as prefix:
 
 ```shell
 ./configure --prefix=${opam_switch_prefix} ...
@@ -385,7 +385,7 @@ bugs might appear.
 
 ## How to add a new intrinsic to the compiler
 
-The OxCaml has a means of replacing calls to external functions
+OxCaml has a means of replacing calls to external functions
 with inline instruction sequences.  This can be used to implement
 "intrinsic" operations that typically correspond to very few (often one)
 machine instruction.  The external functions, typically written in C,
@@ -456,5 +456,5 @@ between the upstream and OxCaml install trees.  This script currently
 only runs on Linux, although it shouldn't be hard to port to macOS, especially
 if using GNU binutils.  It is recommended to install the Jane Street `patdiff` executable
 before running `make compare`.  The comparison script has not been maintained since the
-early releases of the OxCaml; it was written as part of the acceptance process
+early releases of OxCaml; it was written as part of the acceptance process
 for the initial release.

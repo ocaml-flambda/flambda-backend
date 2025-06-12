@@ -66,7 +66,7 @@ enum instructions {
 FIRST_UNIMPLEMENTED_OP};
 
 // Think carefully before adding a new bytecode instruction. In general,
-// this makes the oxcaml compiler less compatible with the
+// this makes the OxCaml compiler less compatible with the
 // OCaml ecosystem. Projects may need to be patched to build with
 // oxcaml.
 //
