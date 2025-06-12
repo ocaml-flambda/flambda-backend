@@ -9447,6 +9447,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
 and type_let_def_wrap_warnings
     ?(check = fun s -> Warnings.Unused_var s)
     ?(check_strict = fun s -> Warnings.Unused_var_strict s)
+    ?(check_mutated = fun s -> Warnings.Unused_mutable s)
     ~is_recursive ~entirely_functions ~exp_env ~new_env ~spat_sexp_list
     ~attrs_list ~mode_pat_typ_list ~pvs
     type_def =
@@ -9538,7 +9539,19 @@ and type_let_def_wrap_warnings
                         List.iter Env.mark_value_used (get_ref slot);
                         used := true;
                         some_used := true
-                  )
+                  );
+                match vd.val_kind with
+                | Val_mut _ ->
+                  let mutated = ref false in
+                  if not (name = "" || name.[0] = '_' || name.[0] = '#') then
+                    add_delayed_check
+                      (fun () ->
+                        if not !mutated then
+                          Location.prerr_warning vd.Subst.Lazy.val_loc
+                            (check_mutated name)
+                      );
+                  Env.set_value_mutated_callback vd (fun () -> mutated := true)
+                | _ -> ()
               )
               (Typedtree.pat_bound_idents pat);
             mode, expected_ty, Some slot
