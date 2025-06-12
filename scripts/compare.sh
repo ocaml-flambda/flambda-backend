@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Compare the installation tree produced by the Flambda backend build
+# Compare the installation tree produced by the OxCaml build
 # process against that from an upstream compiler built with make.
 
 set -eu -o pipefail
@@ -22,7 +22,7 @@ if ! which patdiff > /dev/null 2>&1 ; then
   difftool="diff -U3"
 fi
 
-# Installation root (--prefix) for the upstream and Flambda backend compilers
+# Installation root (--prefix) for the upstream and OxCaml compilers
 # We'd like these not to have trailing slashes as they are used for matching
 # below.
 upstream_tree=$(echo $1 | sed 's:/$::')
@@ -41,7 +41,7 @@ if [ ! -x "$upstream_tree/bin/ocamlnat" ]; then
   exit 1
 fi
 
-# These filenames are the ones from the Flambda backend install tree.
+# These filenames are the ones from the OxCaml install tree.
 # ocamloptcomp.a will diverge in time, but it's ok to compare right now.
 
 # It would be nice in the future to automatically determine the list of
@@ -83,16 +83,16 @@ archives_to_compare="\
 
 # We don't currently check dynlink.a or the other Dynlink artifacts because the
 # build process is quite different (and we currently have a source code patch in
-# the Flambda backend to work around limitations of Dune, although we will
+# the OxCaml to work around limitations of Dune, although we will
 # try to upstream that).  We have execution tests for dynlink in the JS tree in
 # any case.
 
-# compiler-libs/ocamlmiddleend.a is not built in the Flambda backend.
+# compiler-libs/ocamlmiddleend.a is not built in the OxCaml.
 # We should try to remove this from upstream by fixing the ocamlobjinfo
 # problem.  Note that ocamloptcomp.a contains the middle end, both in
-# the Flambda backend and upstream builds.
+# the OxCaml and upstream builds.
 
-# These filenames are the ones from the Flambda backend install tree.
+# These filenames are the ones from the OxCaml install tree.
 stublibs_to_compare="\
   dllstr_stubs.so \
   dllthreads_stubs.so \
@@ -275,7 +275,7 @@ cmx_exclusions="\
   "
 
 # Note that for the other installed artifacts for CSE and CSEgen the
-# dune file in the Flambda backend gives them the correct names rather
+# dune file in the OxCaml gives them the correct names rather
 # than the miscapitalised ones.
 upstream_filename_of_archive_member () {
   filename=$1
@@ -488,7 +488,7 @@ compare_ml_and_mli_files () {
   dir=$1
   upstream_files=$(cd $upstream_tree/$dir && ls *.ml{,i} 2>/dev/null || true)
   for file in $upstream_files; do
-    # We don't have Optmain in the Flambda backend at present (it's called
+    # We don't have Optmain in the OxCaml at present (it's called
     # Oxcaml_main instead).
     # Skip camlinternalMenhirLib until this warning 67 nonsense is sorted.
     if [ "$file" = "optmain.ml" ] || [ "$file" = "optmain.mli" ]; then
@@ -758,7 +758,7 @@ remove_implementations_imported_from_cmx_objinfo_output () {
 
 check_cmx_files () {
   # We must start from the upstream tree, as we want to ensure no .cmx files
-  # are missing in the Flambda backend tree.
+  # are missing in the OxCaml tree.
   all_upstream_cmx=$(cd $upstream_tree && find . -name "*.cmx")
 
   cmx_exclusions_pipe_sep=$(echo $cmx_exclusions | sed 's/ /|/g')
@@ -772,7 +772,7 @@ check_cmx_files () {
 
     # Skip ocamldoc artifacts, those for dynlink (see comment above) and
     # profiling.cmx (which we don't support).  Likewise for main, optmain and
-    # opttopstart which have different names in the Flambda backend build.
+    # opttopstart which have different names in the OxCaml build.
     # domainstate.cmx has some trivial location differences in the dune build
     # which at present cause comparison to fail under Flambda.
     # camlinternalMenhirLib.cmx has differences under Flambda which we ignore.
@@ -923,7 +923,7 @@ check_dynlink_cma_and_cmxa () {
 
 echo "** Immediate subdirs of installation root"
 
-# The Flambda backend does not build or install man pages.
+# The OxCaml does not build or install man pages.
 upstream_subdirs=$(ls -1 $upstream_tree | grep -v '^man$')
 oxcaml_subdirs=$(ls -1 $oxcaml_tree)
 
@@ -969,7 +969,7 @@ for exe in $lib_exes; do
     exit 1
   fi
   if [ ! -f $oxcaml_tree/lib/ocaml/$exe ]; then
-    echo "Executable $exe in lib/ocaml/ not found in Flambda backend tree"
+    echo "Executable $exe in lib/ocaml/ not found in OxCaml tree"
     exit 1
   fi
 done
@@ -1048,7 +1048,7 @@ done
 #   lib/ocaml/compiler-libs/optmain.cmo
 #   lib/ocaml/profiling.cmo
 # We don't use [Profiling] and the three driver files have different
-# names in the Flambda backend build.  It seems unlikely the absence of
+# names in the OxCaml build.  It seems unlikely the absence of
 # these .cmo files will cause a problem.  So we just check for std_exit.cmo
 # and the corresponding .o file for native use.
 
@@ -1058,7 +1058,7 @@ if [ ! -f "$upstream_tree/lib/ocaml/std_exit.o" ]; then
 fi
 
 if [ ! -f "$oxcaml_tree/lib/ocaml/std_exit.o" ]; then
-  echo Expected lib/ocaml/std_exit.o in Flambda backend tree
+  echo Expected lib/ocaml/std_exit.o in OxCaml tree
   exit 1
 fi
 
@@ -1068,7 +1068,7 @@ if [ ! -f "$upstream_tree/lib/ocaml/std_exit.cmo" ]; then
 fi
 
 if [ ! -f "$oxcaml_tree/lib/ocaml/std_exit.cmo" ]; then
-  echo Expected lib/ocaml/std_exit.cmo in Flambda backend tree
+  echo Expected lib/ocaml/std_exit.cmo in OxCaml tree
   exit 1
 fi
 

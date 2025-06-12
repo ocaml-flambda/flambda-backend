@@ -61,7 +61,7 @@ check_all_arches: _build/_bootinstall
 	  ARCH=$$arch RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) ocamloptcomp.cma; \
 	done
 
-# Compare the Flambda backend installation tree against the upstream one.
+# Compare the OxCaml installation tree against the upstream one.
 
 .PHONY: compare
 compare: _compare/config.status _install

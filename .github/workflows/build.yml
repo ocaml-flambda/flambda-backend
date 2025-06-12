@@ -197,7 +197,7 @@ jobs:
       run_testsuite: "true"
 
     steps:
-    - name: Checkout the Flambda backend repo
+    - name: Checkout the OxCaml repo
       uses: actions/checkout@master
       with:
         path: 'oxcaml'
@@ -298,7 +298,7 @@ jobs:
           rm -fv $disable_testcases
         fi
 
-    - name: Configure Flambda backend
+    - name: Configure OxCaml
       working-directory: oxcaml
       run: |
         if [[ -n "${{matrix.cc}}" ]]; then
@@ -327,7 +327,7 @@ jobs:
         codesign -s - -f --entitlements /tmp/core.entitlements $GITHUB_WORKSPACE/ocaml-414/_install/bin/ocamlc.opt
         codesign -s - -f --entitlements /tmp/core.entitlements $GITHUB_WORKSPACE/ocaml-414/_install/bin/ocamlopt.opt
 
-    - name: Build, install and test Flambda backend
+    - name: Build, install and test OxCaml
       working-directory: oxcaml
       run: |
         if [ "$run_testsuite" = true ]; then target=ci; else target=compiler; fi

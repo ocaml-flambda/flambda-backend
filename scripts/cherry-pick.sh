@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# To be run from the root of the Flambda backend repo.
+# To be run from the root of the OxCaml repo.
 # Cherry pick a commit from upstream repo and apply it to oxcaml repo.
 #
 # Intended for experimental middle- and backend-related changes made on the upstream repo

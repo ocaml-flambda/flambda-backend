@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Build & install Flambda backend",
+			"label": "Build & install OxCaml",
 			"type": "shell",
 			"command": "opam exec --switch=4.14.0 make install",
 			"group": "build",
