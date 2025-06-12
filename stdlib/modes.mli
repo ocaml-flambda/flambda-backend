@@ -12,8 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Modes are an experimental compiler feature, supported in the compiler branch found at:
-    https://github.com/ocaml-flambda/ocaml-jst
+(** Modes are an experimental compiler feature, supported in OxCaml.
 
     This module provides types that wrap a value in a different mode from its context. In
     the standard OCaml compiler, these types are all no-op wrappers. *)

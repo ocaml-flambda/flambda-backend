@@ -1,5 +1,5 @@
 #
-# Build rules common to ocaml-jst and flambda-backend
+# Build rules common to ocaml-ox and flambda-backend
 #
 
 ws_boot   = --root=. --workspace=duneconf/boot.ws
@@ -137,7 +137,7 @@ dune_config_targets = \
   duneconf/runtime_stdlib.ws \
   duneconf/main.ws \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
-  $(ocamldir)/duneconf/jst-extra.inc \
+  $(ocamldir)/duneconf/ox-extra.inc \
   dune-project \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune

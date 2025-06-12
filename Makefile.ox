@@ -4,13 +4,13 @@ export ARCH
 
 
 ifeq ($(shell test -x '$(DUNE)' || echo fail), fail)
-  $(error Dune not found. Run ./configure --with-dune=/path/to/dune.exe (See HACKING.jst))
+  $(error Dune not found. Run ./configure --with-dune=/path/to/dune.exe (See HACKING.ox))
 endif
 
 dune = $(DUNE)
 
 ifeq ($(shell which ocamlopt >& /dev/null || echo fail), fail)
-  $(error ocamlopt not found. See HACKING.jst)
+  $(error ocamlopt not found. See HACKING.ox)
 endif
 
 boot_ocamlc = main_native.exe
@@ -23,10 +23,10 @@ ocamldir = .
 toplevels_installed = top
 
 
-dune-project: dune-project.jst
+dune-project: dune-project.ox
 	cp $^ $@
 
-duneconf/jst-extra.inc:
-	echo '(include ../jst.dune)' > $@
+duneconf/ox-extra.inc:
+	echo '(include ../ox.dune)' > $@
 
-include Makefile.common-jst
+include Makefile.common-ox

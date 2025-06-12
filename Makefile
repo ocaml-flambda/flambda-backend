@@ -10,10 +10,10 @@ boot_ocamlobjinfo = tools/objinfo.exe
 ocamldir = .
 toplevels_installed = top opttop
 
-$(ocamldir)/duneconf/jst-extra.inc:
+$(ocamldir)/duneconf/ox-extra.inc:
 	echo > $@
 
-include Makefile.common-jst
+include Makefile.common-ox
 
 .PHONY: ci
 ifeq ($(coverage),yes)
@@ -36,7 +36,7 @@ ci-coverage: boot-runtest coverage
 
 .PHONY: minimizer
 minimizer: runtime-stdlib
-	cp chamelon/dune.jst chamelon/dune
+	cp chamelon/dune.ox chamelon/dune
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: hacking-externals

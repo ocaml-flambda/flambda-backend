@@ -181,7 +181,7 @@
   ast_invariants
   depend
   parser_types ; manual update: mli only files asttypes parsetree
-  ;; TYPING
+               ;; TYPING
   ident
   path
   jkind
@@ -339,7 +339,7 @@
 
 (include duneconf/dirs-to-ignore.inc)
 
-(include duneconf/jst-extra.inc)
+(include duneconf/ox-extra.inc)
 
 (rule
  (deps
@@ -845,8 +845,7 @@
   (glob_files .ocamloptcomp.objs/native/*.cmx)
   (glob_files
    backend/asm_targets/.asm_targets.objs/byte/*.{cmi,cmo,cmt,cmti})
-  (glob_files_rec
-   backend/asm_targets/.asm_targets.objs/native/*.cmx)
+  (glob_files_rec backend/asm_targets/.asm_targets.objs/native/*.cmx)
   (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})
@@ -889,6 +888,7 @@
 ; guess is that targets in subdirectories aren't even discovered until
 ; ocamlcommon is built, unless something in the subdirectory is explicitly made
 ; a dependency.
+
 (alias
  (name install)
  (package ocaml)
