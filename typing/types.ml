@@ -18,9 +18,16 @@
 open Allowance
 open Asttypes
 
+type atomic =
+  | Nonatomic
+  | Atomic
+
 type mutability =
   | Immutable
-  | Mutable of Mode.Alloc.Comonadic.Const.t
+  | Mutable of
+      { modal_upper_bound : Mode.Alloc.Comonadic.Const.t
+      ; atomic : atomic
+      }
 
 let is_mutable = function
   | Immutable -> false

@@ -91,8 +91,10 @@ let fmt_mutable_flag f x =
 let fmt_mutable_mode_flag f (x : Types.mutability) =
   match x with
   | Immutable -> fprintf f "Immutable"
-  | Mutable m ->
-    fprintf f "Mutable(%a)" Mode.Alloc.Comonadic.Const.print m
+  | Mutable { modal_upper_bound; atomic = Nonatomic } ->
+    fprintf f "Mutable(%a)" Mode.Alloc.Comonadic.Const.print modal_upper_bound
+  | Mutable { modal_upper_bound; atomic = Atomic } ->
+    fprintf f "Atomic(%a)" Mode.Alloc.Comonadic.Const.print modal_upper_bound
 
 let fmt_virtual_flag f x =
   match x with
