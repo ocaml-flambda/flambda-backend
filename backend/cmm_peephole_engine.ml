@@ -82,7 +82,12 @@ type binop =
   | Add
   | Sub
   | Lsl
+  | Lsr
+  | Asr
   | Or
+  | And
+  | Comparison
+  | Bitwise_op
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
@@ -102,7 +107,12 @@ let matches_binop (binop : binop) (cop : Cmm.operation) =
   | Add, Caddi -> true
   | Sub, Csubi -> true
   | Lsl, Clsl -> true
+  | Lsr, Clsr -> true
+  | Asr, Casr -> true
   | Or, Cor -> true
+  | And, Cand -> true
+  | Comparison, (Ccmpi _ | Ccmpf _) -> true
+  | Bitwise_op, (Cand | Cor | Cxor) -> true
   | _, _ -> false
 
 let match_clauses_in_order ~default ~matches clauses expr =

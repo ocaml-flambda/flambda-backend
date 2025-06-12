@@ -24,7 +24,12 @@ type binop =
   | Add
   | Sub
   | Lsl
+  | Lsr
+  | Asr
   | Or
+  | And
+  | Comparison
+  | Bitwise_op
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
