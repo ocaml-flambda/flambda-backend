@@ -20,9 +20,9 @@ type t
 
 type raw
 
-val to_raw : t -> raw * Flambda_backend_utils.File_sections.t
+val to_raw : t -> raw * Oxcaml_utils.File_sections.t
 
-val from_raw : sections:Flambda_backend_utils.File_sections.t -> raw -> t
+val from_raw : sections:Oxcaml_utils.File_sections.t -> raw -> t
 
 val create :
   final_typing_env:Flambda2_types.Typing_env.Serializable.t ->

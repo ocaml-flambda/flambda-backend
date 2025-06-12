@@ -1018,7 +1018,7 @@ let transl_declaration env sdecl (id, uid) =
          This allows [estimate_type_jkind] to give an estimate that's
          just barely good enough, such that [constain_type_jkind] can always
          decompose the product of [any]s and recurse on the labels.
-         See https://github.com/ocaml-flambda/flambda-backend/pull/3399. *)
+         See https://github.com/oxcaml/oxcaml/pull/3399. *)
       match kind with
       | Type_record_unboxed_product _ ->
         begin match Jkind.get_layout jkind with
@@ -1310,7 +1310,7 @@ let rec check_constraints_rec env loc visited ty =
       end;
       List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
-      let _, ty = Ctype.instance_poly ~fixed:false tl ty in
+      let ty = Ctype.instance_poly tl ty in
       check_constraints_rec env loc visited ty
   | _ ->
       Btype.iter_type_expr (check_constraints_rec env loc visited) ty
@@ -2413,7 +2413,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    e.g. [type 'a t = #{ a : 'a } and x = int t t], either by using layouts
    variables or the algorithm from "Unboxed data constructors - or, how cpp
    decides a halting problem."
-   See https://github.com/ocaml-flambda/flambda-backend/pull/3407.
+   See https://github.com/oxcaml/oxcaml/pull/3407.
 *)
 type step_result =
   | Contained of type_expr list
@@ -2535,8 +2535,7 @@ let check_regularity ~abs_env env loc path decl to_check =
           end;
           List.iter (check_subtype cpath args prev_exp trace ty) args'
       | Tpoly (ty, tl) ->
-          let (_, ty) =
-            Ctype.instance_poly ~keep_names:true ~fixed:false tl ty in
+          let ty = Ctype.instance_poly ~keep_names:true tl ty in
           check_regular cpath args prev_exp trace ty
       | _ ->
           Btype.iter_type_expr
@@ -2999,7 +2998,10 @@ let transl_extension_constructor ~scope env type_path type_params
         let usage : Env.constructor_usage =
           if priv = Public then Env.Exported else Env.Exported_private
         in
-        let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
+        let cdescr, locks =
+          Env.lookup_constructor ~loc:lid.loc usage lid.txt env
+        in
+        let held_locks = (locks, lid.txt, lid.loc) in
         let (args, cstr_res, _ex) =
           Ctype.instance_constructor Keep_existentials_flexible cdescr
         in
@@ -3033,6 +3035,8 @@ let transl_extension_constructor ~scope env type_path type_params
               | _ -> ())
             typext_params
         end;
+        Ctype.check_constructor_crossing env cdescr.cstr_tag ~res:cstr_res args
+          held_locks;
         (* Ensure that constructor's type matches the type being extended *)
         let cstr_type_path = Btype.cstr_type_path cdescr in
         let cstr_type_params = (Env.find_type cstr_type_path env).type_params in

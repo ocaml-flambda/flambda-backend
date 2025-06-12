@@ -24,7 +24,7 @@
     There are a couple of obstacles to using [dbg] field for FDO directly:
     1) [Debuginfo.item] does not have a field for discriminators.
        Adding it requires changes to the upstream part of the compiler,
-       which is unmodified in flambda-backend.
+       which is unmodified in oxcaml.
     2) Many instructions do not have any associated Debuginfo,
        which is required to output .loc directives. To address it,
        ocamlfdo infers the missing ones, using the semantics of debug_line.

@@ -3,7 +3,7 @@
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_irc_utils
-module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
+module Doubly_linked_list = Oxcaml_utils.Doubly_linked_list
 
 module RegWorkList = Arrayset.Make (struct
   type t = Reg.t

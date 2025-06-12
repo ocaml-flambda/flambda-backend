@@ -184,7 +184,7 @@ external of_int64 : (int64[@local_opt]) -> t
   = "caml_float32_of_int64_bytecode" "caml_float32_of_int64"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert the given 64-bit integer to the nearest representable 32-bit float.
-    The amd64 flambda-backend compiler translates this call to CVTSI2SS. *)
+    The amd64 OxCaml compiler translates this call to CVTSI2SS. *)
 
 external to_int64 : (t[@local_opt]) -> int64
   = "caml_float32_to_int64_bytecode" "caml_float32_to_int64"
@@ -194,21 +194,21 @@ external to_int64 : (t[@local_opt]) -> int64
     If the truncated floating-point number is outside the range
     \[{!Int64.min_int}, {!Int64.max_int}\], no exception is raised, and
     an unspecified, platform-dependent integer is returned.
-    The amd64 flambda-backend compiler translates this call to CVTTSS2SI. *)
+    The amd64 OxCaml compiler translates this call to CVTTSS2SI. *)
 
 external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit integer to a 32-bit float, preserving the value's
     bit pattern.
-    The amd64 flambda-backend compiler translates this call to MOVD. *)
+    The amd64 OxCaml compiler translates this call to MOVD. *)
 
 external to_bits : (t[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Convert a 32-bit float to a 32-bit integer, preserving the value's
     bit pattern.
-    The amd64 flambda-backend compiler translates this call to MOVD. *)
+    The amd64 OxCaml compiler translates this call to MOVD. *)
 
 external of_string : string -> t = "caml_float32_of_string"
 (** Convert the given string to a float.  The string is read in decimal
@@ -253,7 +253,7 @@ external classify_float : (t[@unboxed]) -> fpclass
 external sqrt : t -> t = "caml_sqrt_float32_bytecode" "sqrtf"
   [@@unboxed] [@@noalloc] [@@builtin]
 (** Square root.
-    The amd64 flambda-backend compiler translates this call to SQRTSS. *)
+    The amd64 OxCaml compiler translates this call to SQRTSS. *)
 
 external cbrt : t -> t = "caml_cbrt_float32_bytecode" "cbrtf"
   [@@unboxed] [@@noalloc]
@@ -465,7 +465,7 @@ module With_weird_nan_behavior : sig
   (** [min x y] returns the minimum of [x] and [y].
       If either [x] or [y] is [nan], [y] is returned.
       If both [x] and [y] equal zero, [y] is returned.
-      The amd64 flambda-backend compiler translates this call to MINSS. *)
+      The amd64 OxCaml compiler translates this call to MINSS. *)
 
   external max : t -> t -> t
     = "caml_simd_float32_max_bytecode" "caml_simd_float32_max"
@@ -473,7 +473,7 @@ module With_weird_nan_behavior : sig
   (** [max x y] returns the maximum of [x] and [y].
       If either [x] or [y] is [nan], [y] is returned.
       If both [x] and [y] equal zero, [y] is returned.
-      The amd64 flambda-backend compiler translates this call to MAXSS. *)
+      The amd64 OxCaml compiler translates this call to MAXSS. *)
 end
 
 val min_max : t -> t -> t * t
@@ -502,26 +502,26 @@ external iround_current : t -> int64
     program will change the mode. The default mode may differ on other platforms.
     If the argument is NaN or infinite or if the rounded value cannot be
     represented, then the result is unspecified.
-    The amd64 flambda-backend compiler translates this call to CVTSS2SI. *)
+    The amd64 OxCaml compiler translates this call to CVTSS2SI. *)
 
 val round_current : t -> t
 (** Rounds a [float32] to an integer [float32] using the current rounding mode.
     The default rounding mode on amd64 is "round half to even", and we
     expect that no program will change the mode. The default mode may differ
     on other platforms.
-    The amd64 flambda-backend compiler translates this call to ROUNDSS. *)
+    The amd64 OxCaml compiler translates this call to ROUNDSS. *)
 
 val round_down : t -> t
 (** Rounds a [float32] down to the next integer [float32] toward negative infinity.
-    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+    The amd64 OxCaml compiler translates this call to ROUNDSS.*)
 
 val round_up : t -> t
 (** Rounds a [float32] up to the next integer [float32] toward positive infinity.
-    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+    The amd64 OxCaml compiler translates this call to ROUNDSS.*)
 
 val round_towards_zero : t -> t
 (** Rounds a [float32] to the next integer [float32] toward zero.
-    The amd64 flambda-backend compiler translates this call to ROUNDSS.*)
+    The amd64 OxCaml compiler translates this call to ROUNDSS.*)
 
 val seeded_hash : int -> t -> int
 (** A seeded hash function for floats, with the same output value as

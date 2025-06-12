@@ -1653,9 +1653,14 @@ let instance_poly' copy_scope ~keep_names ~fixed univars sch =
   let ty = copy_sep ~copy_scope ~fixed ~visited sch in
   vars, ty
 
-let instance_poly ?(keep_names=false) ~fixed univars sch =
+let instance_poly_fixed ?(keep_names=false) univars sch =
   For_copy.with_scope (fun copy_scope ->
-    instance_poly' copy_scope ~keep_names ~fixed univars sch
+    instance_poly' copy_scope ~keep_names ~fixed:true univars sch
+  )
+
+let instance_poly ?(keep_names=false) univars sch =
+  For_copy.with_scope (fun copy_scope ->
+    snd (instance_poly' copy_scope ~keep_names ~fixed:false univars sch)
   )
 
 let instance_label ~fixed lbl =
@@ -5010,14 +5015,16 @@ let crossing_of_jkind env jkind =
   Jkind.get_mode_crossing ~jkind_of_type jkind
 
 let crossing_of_ty env ?modalities ty =
-  if not (is_principal ty)
-  then Crossing.top
-  else
-    let jkind = type_jkind_purely env ty in
-    let crossing = crossing_of_jkind env jkind in
-    match modalities with
-    | None -> crossing
-    | Some m -> Crossing.modality m crossing
+  let crossing =
+    if not (is_principal ty)
+      then Crossing.top
+    else
+      let jkind = type_jkind_purely env ty in
+      crossing_of_jkind env jkind
+  in
+  match modalities with
+  | None -> crossing
+  | Some m -> Crossing.modality m crossing
 
 let cross_left env ?modalities ty mode =
   let crossing = crossing_of_ty env ?modalities ty in
@@ -6469,7 +6476,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tpoly (u1, []), Tpoly (u2, [])) ->
         subtype_rec env trace u1 u2 cstrs
     | (Tpoly (u1, tl1), Tpoly (u2, [])) ->
-        let _, u1' = instance_poly ~fixed:false tl1 u1 in
+        let u1' = instance_poly tl1 u1 in
         subtype_rec env trace u1' u2 cstrs
     | (Tpoly (u1, tl1), Tpoly (u2,tl2)) ->
         begin try
@@ -7222,3 +7229,38 @@ let constrain_decl_jkind env decl jkind =
         match decl.type_manifest with
         | None -> err
         | Some ty -> constrain_type_jkind env ty jkind
+
+let check_constructor_crossing env tag ~res args held_locks =
+  match tag with
+  | Ordinary _ | Null -> ()
+  | Extension _ ->
+      match get_desc (expand_head env res) with
+      | Tconstr (p, _, _) when Path.same Predef.path_exn p ->
+          (* CR zqian: handle other extensible variant types as well *)
+          let mode_crossings =
+            List.map (
+              fun ({ca_type; ca_modalities; _} : Types.constructor_argument) ->
+              crossing_of_ty env ~modalities:ca_modalities ca_type
+            ) args
+          in
+          let mode_crossing =
+            List.fold_left Mode.Crossing.join Mode.Crossing.bot mode_crossings
+          in
+          (* We only check portability and contention, since [exn] doesn't
+               cross other axes anyway. *)
+          let monadic =
+            Mode.Value.max_with (Monadic Contention) Mode.Contention.min
+            |> Mode.Crossing.apply_right mode_crossing
+          in
+          let comonadic =
+            Mode.Value.min_with (Comonadic Portability) Mode.Portability.max
+            |> Mode.Crossing.apply_left mode_crossing
+          in
+          let mode = {
+            monadic = monadic.monadic;
+            comonadic = comonadic.comonadic;
+          }
+          |> Mode.Value.close_over
+          in
+          ignore (Env.walk_locks ~env ~item:Constructor mode None held_locks)
+      | _ -> ()

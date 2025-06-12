@@ -3,7 +3,7 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module List = ListLabels
 module String = Misc.Stdlib.String
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 let function_is_assumed_to_never_poll func =
   String.begins_with ~prefix:"caml_apply" func
@@ -11,7 +11,7 @@ let function_is_assumed_to_never_poll func =
 
 let is_disabled fun_name =
   (not Config.poll_insertion)
-  || !Flambda_backend_flags.disable_poll_insertion
+  || !Oxcaml_flags.disable_poll_insertion
   || function_is_assumed_to_never_poll fun_name
 
 (* These are used for the poll error annotation later on*)

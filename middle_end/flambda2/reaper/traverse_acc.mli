@@ -80,7 +80,8 @@ val get_continuation_info : t -> continuation_info Continuation.Map.t
 
 val add_apply : apply_dep -> t -> unit
 
-val add_set_of_closures_dep : Name.t -> Code_id.t -> t -> unit
+val add_set_of_closures_dep :
+  Name.t -> Code_id.t -> only_full_applications:bool -> t -> unit
 
 val add_code : Code_id.t -> code_dep -> t -> unit
 

@@ -229,8 +229,8 @@ val flambda : bool
 val flambda2 : bool
 (** Whether the compiler was configured for Flambda 2 *)
 
-val flambda_backend : bool
-(** [true] if the compiler was built in a Flambda backend repo, [false] if
+val oxcaml : bool
+(** [true] if the compiler was built in a OxCaml repo, [false] if
     the compiler was built as per upstream. *)
 
 val with_flambda_invariants : bool
@@ -306,6 +306,9 @@ val multidomain : bool
 
 val tsan : bool
 (** Whether ThreadSanitizer instrumentation is enabled *)
+
+val parameterised_modules : bool
+(** Whether parameterised modules are supported *)
 
 (** Access to configuration values *)
 val print_config : out_channel -> unit

@@ -384,6 +384,8 @@ val machtype_identifier : machtype -> string
 val curry_function_sym :
   Lambda.function_kind -> machtype list -> machtype -> Cmm.symbol
 
+val fail_if_called_indirectly_sym : Cmm.symbol
+
 (** Bigarrays *)
 
 (** Returns the size (in number of bytes) of a single element contained in a
@@ -1081,6 +1083,8 @@ val send_function :
 
 val apply_function :
   Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
+
+val fail_if_called_indirectly_function : unit -> Cmm.phrase list
 
 (* Atomics *)
 

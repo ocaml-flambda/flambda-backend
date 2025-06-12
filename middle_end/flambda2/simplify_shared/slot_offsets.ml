@@ -728,7 +728,7 @@ end = struct
       let size =
         match code_id with
         | Deleted { function_slot_size; _ } -> function_slot_size
-        | Code_id code_id ->
+        | Code_id { code_id; only_full_applications = _ } ->
           let code_metadata = get_code_metadata code_id in
           Code_metadata.function_slot_size code_metadata
       in

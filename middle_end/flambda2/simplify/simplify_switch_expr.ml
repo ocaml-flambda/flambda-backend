@@ -106,8 +106,11 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
           | Non_inlinable_zero_arity { handler = Known handler } ->
             check_handler ~handler ~action
           | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-          | Invalid _ | Toplevel_or_function_return_or_exn_continuation _ ->
-            None
+          | Invalid _ -> None
+          | Toplevel_or_function_return_or_exn_continuation _ ->
+            (* It is legal to call a return continuation with zero arguments; it
+               might originally have had layout [void] *)
+            Some action
           | Non_inlinable_non_zero_arity _ ->
             Misc.fatal_errorf
               "Inconsistency for %a between [Apply_cont.is_goto] and \
@@ -199,12 +202,19 @@ let filter_and_choose_alias required_names alias_set =
   in
   Alias_set.find_best available_alias_set
 
-let find_cse_simple dacc required_names prim =
+let find_cse_simple ?(required = true) dacc required_names prim =
   match P.Eligible_for_cse.create prim with
   | None -> None (* Constant *)
   | Some with_fixed_value -> (
     match DE.find_cse (DA.denv dacc) with_fixed_value with
-    | None -> None
+    | None ->
+      if required
+      then
+        Misc.fatal_errorf
+          "Expected@ primitive@ not@ found@ in@ CSE@ environment@ while@ \
+           simplifying switch:@ %a"
+          P.print prim
+      else None
     | Some simple ->
       filter_and_choose_alias required_names
         (find_all_aliases (DA.typing_env dacc) simple))
@@ -509,6 +519,7 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             with
             | None -> normal_case uacc
             | Some tagged_scrutinee ->
+              (* CR bclement: look it up in CSE environment *)
               let do_tagging =
                 Named.create_prim
                   (P.Unary (Boolean_not, tagged_scrutinee))
@@ -684,8 +695,8 @@ let simplify_switch0 dacc switch ~down_to_up =
       (rebuild_switch ~original:switch ~arms ~condition_dbg ~scrutinee
          ~scrutinee_ty ~dacc_before_switch)
 
-let simplify_switch ~simplify_let ~simplify_function_body dacc switch
-    ~down_to_up =
+let simplify_switch ~simplify_let_with_bound_pattern ~simplify_function_body
+    dacc switch ~down_to_up =
   let tagged_scrutinee = Variable.create "tagged_scrutinee" in
   let tagging_prim =
     Named.create_prim
@@ -700,13 +711,14 @@ let simplify_switch ~simplify_let ~simplify_function_body dacc switch
       ~body:(Expr.create_switch switch)
       ~free_names_of_body:Unknown
   in
-  let dacc =
-    DA.map_flow_acc dacc
-      ~f:
-        (Flow.Acc.add_used_in_current_handler
-           (NO.singleton_variable tagged_scrutinee NM.normal))
-  in
-  simplify_let
-    ~simplify_expr:(fun dacc _body ~down_to_up ->
+  simplify_let_with_bound_pattern
+    ~simplify_expr_with_bound_pattern:
+      (fun dacc (bound_pattern, _body) ~down_to_up ->
+      let dacc =
+        DA.map_flow_acc dacc
+          ~f:
+            (Flow.Acc.add_used_in_current_handler
+               (Bound_pattern.free_names bound_pattern))
+      in
       simplify_switch0 dacc switch ~down_to_up)
     ~simplify_function_body dacc let_expr ~down_to_up

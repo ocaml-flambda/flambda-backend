@@ -75,7 +75,17 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     type t = O.t
 
-    external is_null : O.t -> bool = "%is_null"
+    (* Normally, [Obj.t] has layout [value], but we need to handle nullable
+       values at toplevel. flambda2 is allowed to optimise calls to [is_null]
+       on an argument with [value] layout to [false], so first convert
+       (opaquely!) to a type with [value_or_null] layout. *)
+    type obj_or_null : value_or_null
+
+    external obj_or_null : t -> obj_or_null = "%opaque"
+
+    external is_null : obj_or_null -> bool = "%is_null"
+
+    let[@inline] is_null obj = is_null (obj_or_null obj)
 
     (* Normally, [Obj.is_block] can't be called on [value_or_null]s.
        But here we need to handle nullable values at toplevel. *)

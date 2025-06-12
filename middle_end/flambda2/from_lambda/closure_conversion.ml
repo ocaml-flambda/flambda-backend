@@ -1581,9 +1581,10 @@ let close_exact_or_unknown_apply acc env
           let result_arity_from_code = Code_metadata.result_arity meta in
           if (* See comment about when this check can be done, in
                 simplify_apply_expr.ml *)
-             not
-               (Flambda_arity.equal_ignoring_subkinds return_arity
-                  result_arity_from_code)
+             Flambda_features.kind_checks ()
+             && not
+                  (Flambda_arity.equal_ignoring_subkinds return_arity
+                     result_arity_from_code)
           then
             Misc.fatal_errorf
               "Wrong return arity for direct OCaml function call to %a@ \
@@ -2812,7 +2813,7 @@ let close_functions acc external_env ~current_region function_declarations =
     function_code_ids_in_order |> List.rev |> Function_slot.Lmap.of_list
     |> Function_slot.Lmap.map
          (fun code_id : Function_declarations.code_id_in_function_declaration ->
-           Code_id code_id)
+           Code_id { code_id; only_full_applications = false })
   in
   let function_decls = Function_declarations.create funs in
   let value_slots =

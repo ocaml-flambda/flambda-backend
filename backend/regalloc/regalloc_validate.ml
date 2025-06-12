@@ -14,7 +14,7 @@
 (* CR-soon xclerc for xclerc: try to enable warning 4. *)
 
 open! Int_replace_polymorphic_compare
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 include Cfg_intf.S
 
 module Location : sig
@@ -439,7 +439,7 @@ end = struct
     t
 
   let create cfg =
-    match !Flambda_backend_flags.regalloc_validate with
+    match !Oxcaml_flags.regalloc_validate with
     | false -> None
     | true -> Some (do_create cfg)
 

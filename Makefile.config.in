@@ -253,7 +253,7 @@ UNIXLIB=unix
 
 RUNTIMEI=$(INSTRUMENTED_RUNTIME)
 
-## Variables used by flambda-backend build
+## Variables used by oxcaml build
 
 install_prefix = @prefix@
 dune = @dune@

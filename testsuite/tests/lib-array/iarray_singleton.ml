@@ -3,5 +3,5 @@
 *)
 
 (* this failed at one point on flambda2 with -O3:
-   https://github.com/ocaml-flambda/flambda-backend/pull/1457 *)
+   https://github.com/oxcaml/oxcaml/pull/1457 *)
 let singleton x = [: x :]

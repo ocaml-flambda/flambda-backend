@@ -25,7 +25,7 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance

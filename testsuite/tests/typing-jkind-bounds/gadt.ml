@@ -96,7 +96,7 @@ Error: This value is "aliased" but expected to be "unique".
 (***********************************************************************)
 (* This test is about trying to avoid inconsistent contexts.
    See
-   https://github.com/ocaml-flambda/flambda-backend/pull/3284#discussion_r1920019049
+   https://github.com/oxcaml/oxcaml/pull/3284#discussion_r1920019049
 *)
 
 module type S = sig

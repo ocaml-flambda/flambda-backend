@@ -27,7 +27,10 @@ type code_id_in_function_declaration =
       { function_slot_size : int;
         dbg : Debuginfo.t
       }
-  | Code_id of Code_id.t
+  | Code_id of
+      { code_id : Code_id.t;
+        only_full_applications : bool
+      }
 
 val empty : t
 

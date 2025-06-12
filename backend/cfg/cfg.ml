@@ -30,7 +30,7 @@ open! Int_replace_polymorphic_compare
 let verbose = ref false
 
 include Cfg_intf.S
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 type basic_instruction_list = basic instruction DLL.t
 

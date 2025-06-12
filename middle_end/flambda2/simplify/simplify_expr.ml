@@ -115,8 +115,9 @@ let rec simplify_expr dacc expr ~down_to_up =
     Simplify_apply_cont_expr.simplify_apply_cont dacc apply_cont ~down_to_up
   | Switch switch ->
     Simplify_switch_expr.simplify_switch
-      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_function_body dacc
-      switch ~down_to_up
+      ~simplify_let_with_bound_pattern:
+        Simplify_let_expr.simplify_let_with_bound_pattern
+      ~simplify_function_body dacc switch ~down_to_up
   | Invalid { message } ->
     (* CR mshinwell: Make sure that a program can be simplified to just
        [Invalid]. *)

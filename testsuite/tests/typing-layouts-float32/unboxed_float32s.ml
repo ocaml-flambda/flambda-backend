@@ -22,7 +22,7 @@
 
 (* mshinwell: This test is now only run with flambda2, as the corresponding
    ocamltest predicate is reliable for testing whether this is an
-   flambda-backend build. *)
+   oxcaml build. *)
 
 (* This file contains various tests for float32#.  It's not an expect test to make
    sure it gets tested for native code. *)

@@ -28,7 +28,7 @@ open! Int_replace_polymorphic_compare
 [@@@ocaml.warning "+a-40-41-42"]
 
 module CL = Cfg_with_layout
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 type t =
   { mutable result : bool;

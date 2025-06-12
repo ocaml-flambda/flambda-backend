@@ -22,7 +22,7 @@
     doesn't change during the execution of the compiler.
 *)
 
-(* CR aodintsov/mshinwell: merge the remaining flambda-backend changes
+(* CR aodintsov/mshinwell: merge the remaining oxcaml changes
    upstream *)
 
 val add_dir : hidden:bool -> string -> unit

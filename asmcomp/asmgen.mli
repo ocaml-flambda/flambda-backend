@@ -43,7 +43,7 @@ val compile_implementation :
     and continues compilation from [Emit].
 
     Correctness: carefully consider any use of [Config], [Clflags],
-    [Flambda_backend_flags] and shared variables during or after [Emit].
+    [Oxcaml_flags] and shared variables during or after [Emit].
     A mismatch between between their values in different compilation stages
     might lead to a miscompilation or compilation failures during
     [compile_implementation_linear]. Mismatches can also be due to

@@ -84,8 +84,8 @@ let wrap_expand f s =
   expand_position start (Array.length arr);
   arr
 
-module Options = Flambda_backend_args.Make_opttop_options (struct
-    include Flambda_backend_args.Default.Opttopmain
+module Options = Oxcaml_args.Make_opttop_options (struct
+    include Oxcaml_args.Default.Opttopmain
     let _stdin () = file_argument ""
     let _args = wrap_expand Arg.read_arg
     let _args0 = wrap_expand Arg.read_arg0
@@ -102,7 +102,7 @@ let () =
 
 let main () =
   Clflags.native_code := true;
-  Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
+  Clflags.Opt_flag_handler.set Oxcaml_flags.opt_flag_handler;
   let list = ref Options.list in
   begin
     try

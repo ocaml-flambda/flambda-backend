@@ -2,7 +2,7 @@
 
 open! Int_replace_polymorphic_compare
 module List = ListLabels
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 type cell = Cfg.basic Cfg.instruction DLL.cell
 

@@ -34,10 +34,10 @@ jobs:
 #       J: "3"
 #
 #     steps:
-#     - name: Checkout the Flambda backend repo
+#     - name: Checkout the OxCaml repo
 #       uses: actions/checkout@master
 #       with:
-#         path: 'flambda_backend'
+#         path: 'oxcaml'
 #
 #     # This adds a switch at $GITHUB_WORKSPACE/_opam
 #     - name: Set up OCaml 4.14
@@ -72,8 +72,8 @@ jobs:
 #         # Remove unneeded parts to shrink cache file
 #         rm -rf _opam/{lib/ocaml/expunge,bin/*.byte}
 #
-#     - name: Configure Flambda backend
-#       working-directory: flambda_backend
+#     - name: Configure OxCaml
+#       working-directory: oxcaml
 #       run: |
 #         autoconf
 #         ./configure \
@@ -82,8 +82,8 @@ jobs:
 #           ${{ matrix.config }}
 #
 #
-#     - name: Build, install and test Flambda backend
-#       working-directory: flambda_backend
+#     - name: Build, install and test OxCaml
+#       working-directory: oxcaml
 #       run: opam exec -- make ci
 #       env:
 #         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
@@ -92,5 +92,5 @@ jobs:
 #       uses: actions/upload-artifact@v4
 #       with:
 #         name: coverage-${{ github.sha }}
-#         path: flambda_backend/_coverage/**
+#         path: oxcaml/_coverage/**
 #

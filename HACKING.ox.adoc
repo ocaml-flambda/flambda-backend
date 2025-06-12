@@ -1,0 +1,95 @@
+## Building
+
+See HACKING.md.
+
+## Testing
+
+You can
+
+    $ make -f Makefile.ox runtest-upstream
+
+to run the entire testsuite. As a shorter synonym, you may also
+
+    $ make -f Makefile.ox test
+
+If you want to run just one test or one test directory, you can
+
+    $ make -f Makefile.ox test-one TEST=<<test file here>>
+    $ make -f Makefile.ox test-one DIR=<<test dir here>>
+
+where the test file or test dir are specified with respect to the
+`testsuite/tests` directory. For example:
+
+    $ make -f Makefile.ox test-one TEST=typing-local/local.ml
+    $ make -f Makefile.ox test-one DIR=typing-local
+
+Likewise, you can use `promote-one` to accept the diff from a failed
+test:
+
+    $ make -f Makefile.ox promote-one TEST=typing-local/local.ml
+    $ make -f Makefile.ox promote-one DIR=typing-local
+
+If you've run some series of tests and would like to accept the diff
+from all failed tests in that run, use `promote-failed`:
+
+    $ make -f Makefile.ox promote-failed
+
+To run just one test without running a full dune build, you can use
+`*-no-rebuild` versions of `test-one` and `promote-one`. Note that these
+targets won't pick up changes you've made to compiler code, though they will
+faithfully pick up changes you've made to test files.
+
+    $ make -f Makefile.ox test-one-no-rebuild TEST=typing-local/local.ml
+    $ make -f Makefile.ox promote-one-no-rebuild DIR=typing-local
+
+## Debugging
+
+We make several custom printers available so that we can print more values in
+`ocamldebug`. Notable examples:
+
+  * OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
+of types no longer works without a custom printer.
+  * The debug printer for `Ctypes.global_state` lets you see the global mutable state maintained within the `Ctypes` module.
+
+Here's how to install the custom printers for a run of `ocamldebug`:
+
+1. Use the old `Makefile`, not the new `Makefile.ox`. This is an infelicity
+we hope to fix.
+
+2. In the `tools` directory, run `make debug_printers`.
+
+3. In the debugger, execute some instructions, with e.g. `run` or `step`. This forces
+the debugger to load the compiler code, required for the next
+step.
+
+4. From your debugging session, run `source tools/debug_printers` to install the printers.
+
+To add a new printer, simply add a line of the form
+
+    let name = Some.Compiler.printer
+
+to `tools/debug_printers.ml`, and then run `make debug_printers` in the `tools`
+directory to regenerate the printing script.
+
+## Benchmarking
+
+A small but relatively comprehensive benchmark is to run our compiler against `typing/typecore.ml`. First we install the
+opam switch with FP (frame pointers) enabled; adjust the version number as needed:
+
+    $ opam switch create 4.14.1-fp --packages=ocaml-variants.4.14.1+options,ocaml-option-fp --repos=default
+
+Remember to check that the newly installed switch is being used:
+
+    $ opam switch
+    #   switch     compiler                                         description
+        4.14.1     ocaml-base-compiler.4.14.1                       4.14.1
+    ->  4.14.1-fp  ocaml-option-fp.1,ocaml-variants.4.14.1+options  4.14.1-fp
+
+Then build the compiler &mdash; the following command will build the compiler using the opam switch, then use the newly-built compiler to build itself.
+
+    $ make -f Makefile.ox compiler
+
+We can now benchmark our compiler against `typecore.ml`. The following `_bootinstall` is built using the opam switch and has FP enabled.
+
+    $ cd _build/main
+    $ perf stat -r 5 ../_bootinstall/bin/ocamlc.opt -strict-sequence -principal -w +a-4-9-40-41-42-44-45-48-66-70 -warn-error A -bin-annot -safe-string -strict-formats -w -67 -g -bin-annot -I .ocamlcommon.objs/byte -I ../runtime_stdlib_install/lib/ocaml_runtime_stdlib/  -intf-suffix .ml -no-alias-deps -o .ocamlcommon.objs/byte/typecore.cmo -c -impl typecore.ml

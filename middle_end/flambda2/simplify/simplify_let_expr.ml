@@ -359,3 +359,13 @@ let simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
     ~f:
       (simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
          ~down_to_up)
+
+let simplify_let_with_bound_pattern ~simplify_expr_with_bound_pattern
+    ~simplify_function_body dacc let_expr ~down_to_up =
+  let module L = Flambda.Let in
+  L.pattern_match let_expr ~f:(fun bound_pattern ->
+      simplify_let0
+        ~simplify_expr:(fun dacc body ~down_to_up ->
+          simplify_expr_with_bound_pattern dacc (bound_pattern, body)
+            ~down_to_up)
+        ~simplify_function_body dacc let_expr ~down_to_up bound_pattern)

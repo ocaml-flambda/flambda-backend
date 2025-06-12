@@ -22,7 +22,7 @@ open Config
 open Clflags
 open Misc
 open Cmm
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 module String = Misc.Stdlib.String
 
 type error =
@@ -46,11 +46,11 @@ let cmm_invariants ppf fd_cmm =
 
 let cfg_invariants ppf cfg =
   let print_fundecl ppf c =
-    if !Flambda_backend_flags.dump_cfg
+    if !Oxcaml_flags.dump_cfg
     then Cfg_with_layout.dump ppf c ~msg:"*** Cfg invariant check failed"
     else Format.fprintf ppf "%s" (Cfg_with_layout.cfg c).fun_name
   in
-  if !Flambda_backend_flags.cfg_invariants && Cfg_invariants.run ppf cfg
+  if !Oxcaml_flags.cfg_invariants && Cfg_invariants.run ppf cfg
   then
     Misc.fatal_errorf "Cfg invariants failed on following fundecl:@.%a@."
       print_fundecl cfg;
@@ -66,8 +66,7 @@ let pass_dump_cfg_if ppf flag message c =
   c
 
 let should_vectorize () =
-  !Flambda_backend_flags.vectorize
-  && not (Flambda2_ui.Flambda_features.classic_mode ())
+  !Oxcaml_flags.vectorize && not (Flambda2_ui.Flambda_features.classic_mode ())
 
 let start_from_emit = ref true
 
@@ -198,7 +197,7 @@ let should_use_linscan fd =
   || List.mem Cmm.Use_linscan_regalloc fd.fun_codegen_options
   || List.compare_length_with
        (Reg.all_relocatable_regs ())
-       !Flambda_backend_flags.regalloc_linscan_threshold
+       !Oxcaml_flags.regalloc_linscan_threshold
      > 0
 
 let if_emit_do f x = if should_emit () then f x else ()
@@ -312,7 +311,7 @@ let cfg_with_infos_profile ?accumulate pass f x =
 let ( ++ ) x f = f x
 
 let reorder_blocks_random ppf_dump cl =
-  match !Flambda_backend_flags.reorder_blocks_random with
+  match !Oxcaml_flags.reorder_blocks_random with
   | None -> cl
   | Some seed ->
     (* Initialize random state based on user-provided seed and function name.
@@ -322,7 +321,7 @@ let reorder_blocks_random ppf_dump cl =
     let fun_name = (Cfg_with_layout.cfg cl).fun_name in
     let random_state = Random.State.make [| seed; Hashtbl.hash fun_name |] in
     Cfg_with_layout.reorder_blocks_random ~random_state cl;
-    pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+    pass_dump_cfg_if ppf_dump Oxcaml_flags.dump_cfg
       "After reorder_blocks_random" cl
 
 type register_allocator =
@@ -331,7 +330,7 @@ type register_allocator =
   | LS
 
 let register_allocator fd : register_allocator =
-  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
+  match String.lowercase_ascii !Oxcaml_flags.regalloc with
   | "" | "cfg" -> if should_use_linscan fd then LS else IRC
   | "gi" -> GI
   | "irc" -> IRC
@@ -361,8 +360,7 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
          cfg_with_layout
          ++ cfg_with_layout_profile ~accumulate:true "vectorize"
               (Vectorize.cfg ppf_dump)
-         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
-              "After vectorize")
+         ++ pass_dump_cfg_if ppf_dump Oxcaml_flags.dump_cfg "After vectorize")
   ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
        (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
@@ -406,7 +404,7 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   ++ cfg_with_layout_profile ~accumulate:true "peephole_optimize_cfg"
        Peephole_optimize.peephole_optimize_cfg
   ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
-       match !Flambda_backend_flags.cfg_stack_checks with
+       match !Oxcaml_flags.cfg_stack_checks with
        | false -> cfg_with_layout
        | true -> Cfg_stack_checks.cfg cfg_with_layout)
   ++ cfg_with_layout_profile ~accumulate:true "save_cfg" save_cfg
@@ -422,8 +420,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
        Cfg_selection.emit_fundecl ~future_funcnames:funcnames fd_cmm
-       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
-            "After selection")
+       ++ pass_dump_cfg_if ppf_dump Oxcaml_flags.dump_cfg "After selection")
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
          compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout)
@@ -431,7 +428,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
-       match !Flambda_backend_flags.cfg_stack_checks with
+       match !Oxcaml_flags.cfg_stack_checks with
        | false -> Stack_check.linear fd
        | true -> fd)
   ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl

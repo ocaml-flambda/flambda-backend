@@ -161,7 +161,7 @@ For 64-bit architectures:
 bits  63    64-R 63-R  10 9     8 7   0
 
 where 0 <= R <= 31 is HEADER_RESERVED_BITS. R is always
-set to 8 for the flambda-backend compiler in order to support
+set to 8 for the OxCaml compiler in order to support
 mixed blocks. In the upstream compiler, R is set with the
 --enable-reserved-header-bits=R argument.
 
@@ -324,7 +324,7 @@ CAMLno_tsan_for_perf Caml_inline header_t Hd_val(value val)
    in a for-loop.
 */
 
-/* flambda-backend: We rename the size macros to [Allocated_...] so that we're
+/* oxcaml: We rename the size macros to [Allocated_...] so that we're
    forced to think about whether C code needs to updated for mixed blocks, which
    have separate notions of scannable size and total size of an object, even for
    scannable tags. We call an object's size (including possibly non-scannable

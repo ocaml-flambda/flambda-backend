@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Compare the installation tree produced by the Flambda backend build
+# Compare the installation tree produced by the OxCaml build
 # process against that from an upstream compiler built with make.
 
 set -eu -o pipefail
@@ -22,11 +22,11 @@ if ! which patdiff > /dev/null 2>&1 ; then
   difftool="diff -U3"
 fi
 
-# Installation root (--prefix) for the upstream and Flambda backend compilers
+# Installation root (--prefix) for the upstream and OxCaml compilers
 # We'd like these not to have trailing slashes as they are used for matching
 # below.
 upstream_tree=$(echo $1 | sed 's:/$::')
-flambda_backend_tree=$(echo $2 | sed 's:/$::')
+oxcaml_tree=$(echo $2 | sed 's:/$::')
 ocamlobjinfo=$3
 
 if [ ! -x "$ocamlobjinfo" ]; then
@@ -41,7 +41,7 @@ if [ ! -x "$upstream_tree/bin/ocamlnat" ]; then
   exit 1
 fi
 
-# These filenames are the ones from the Flambda backend install tree.
+# These filenames are the ones from the OxCaml install tree.
 # ocamloptcomp.a will diverge in time, but it's ok to compare right now.
 
 # It would be nice in the future to automatically determine the list of
@@ -83,16 +83,16 @@ archives_to_compare="\
 
 # We don't currently check dynlink.a or the other Dynlink artifacts because the
 # build process is quite different (and we currently have a source code patch in
-# the Flambda backend to work around limitations of Dune, although we will
+# the OxCaml to work around limitations of Dune, although we will
 # try to upstream that).  We have execution tests for dynlink in the JS tree in
 # any case.
 
-# compiler-libs/ocamlmiddleend.a is not built in the Flambda backend.
+# compiler-libs/ocamlmiddleend.a is not built in the OxCaml.
 # We should try to remove this from upstream by fixing the ocamlobjinfo
 # problem.  Note that ocamloptcomp.a contains the middle end, both in
-# the Flambda backend and upstream builds.
+# the OxCaml and upstream builds.
 
-# These filenames are the ones from the Flambda backend install tree.
+# These filenames are the ones from the OxCaml install tree.
 stublibs_to_compare="\
   dllstr_stubs.so \
   dllthreads_stubs.so \
@@ -275,7 +275,7 @@ cmx_exclusions="\
   "
 
 # Note that for the other installed artifacts for CSE and CSEgen the
-# dune file in the Flambda backend gives them the correct names rather
+# dune file in the OxCaml gives them the correct names rather
 # than the miscapitalised ones.
 upstream_filename_of_archive_member () {
   filename=$1
@@ -381,29 +381,29 @@ list_object_file_symbols () {
 
 compare_object_file_symbols () {
   upstream_file=$1
-  flambda_backend_file=$2
+  oxcaml_file=$2
 
   upstream_symbols=$(mktemp)
-  flambda_backend_symbols=$(mktemp)
+  oxcaml_symbols=$(mktemp)
 
   upstream_symbols_all=$(mktemp)
-  flambda_backend_symbols_all=$(mktemp)
+  oxcaml_symbols_all=$(mktemp)
 
   list_object_file_symbols $upstream_file $upstream_symbols \
     $upstream_symbols_all
-  list_object_file_symbols $flambda_backend_file $flambda_backend_symbols \
-    $flambda_backend_symbols_all
+  list_object_file_symbols $oxcaml_file $oxcaml_symbols \
+    $oxcaml_symbols_all
 
-  $difftool $upstream_symbols $flambda_backend_symbols \
+  $difftool $upstream_symbols $oxcaml_symbols \
     || (echo "Symbols do not match."; \
-        rm -f $upstream_symbols $flambda_backend_symbols; \
-        rm -f $upstream_symbols_all $flambda_backend_symbols_all; \
+        rm -f $upstream_symbols $oxcaml_symbols; \
+        rm -f $upstream_symbols_all $oxcaml_symbols_all; \
         exit 1)
 
-  $difftool $upstream_symbols_all $flambda_backend_symbols_all || true
+  $difftool $upstream_symbols_all $oxcaml_symbols_all || true
 
-  rm -f $upstream_symbols $flambda_backend_symbols
-  rm -f $upstream_symbols_all $flambda_backend_symbols_all
+  rm -f $upstream_symbols $oxcaml_symbols
+  rm -f $upstream_symbols_all $oxcaml_symbols_all
 }
 
 compare_archive () {
@@ -417,32 +417,32 @@ compare_archive () {
   fi
 
   upstream=$(mktemp -d)
-  flambda_backend=$(mktemp -d)
+  oxcaml=$(mktemp -d)
 
   upstream_contents=$(mktemp)
-  flambda_backend_contents=$(mktemp)
+  oxcaml_contents=$(mktemp)
 
   upstream_archive=$upstream_tree/lib/ocaml/$upstream_archive
-  flambda_backend_archive=$flambda_backend_tree/lib/ocaml/$archive
+  oxcaml_archive=$oxcaml_tree/lib/ocaml/$archive
 
   ensure_exists $upstream_archive
-  ensure_exists $flambda_backend_archive
+  ensure_exists $oxcaml_archive
 
   cd $upstream \
     && ar xv $upstream_archive | sort > $upstream_contents
-  cd $flambda_backend \
-    && ar xv $flambda_backend_archive | sort > $flambda_backend_contents
+  cd $oxcaml \
+    && ar xv $oxcaml_archive | sort > $oxcaml_contents
 
   $difftool <(cat $upstream_contents | awk '{print $3}') \
-    <(cat $flambda_backend_contents | upstream_filenames_of_archive_members) \
+    <(cat $oxcaml_contents | upstream_filenames_of_archive_members) \
     || (echo "File names inside archive $archive do not match"; \
         rm -rf $upstream; \
-        rm -rf $flambda_backend; \
+        rm -rf $oxcaml; \
         rm -f $upstream_contents; \
-        rm -f $flambda_backend_contents; \
+        rm -f $oxcaml_contents; \
         exit 1)
 
-  files=$(ls $flambda_backend)
+  files=$(ls $oxcaml)
 
   for file in $files; do
     upstream_file=$(upstream_filename_of_archive_member $file)
@@ -453,13 +453,13 @@ compare_archive () {
       echo "... Comparing symbols in $file (upstream $upstream_file)"
     fi
 
-    compare_object_file_symbols $upstream/$upstream_file $flambda_backend/$file
+    compare_object_file_symbols $upstream/$upstream_file $oxcaml/$file
   done
 
   rm -rf $upstream
-  rm -rf $flambda_backend
+  rm -rf $oxcaml
   rm -f $upstream_contents
-  rm -f $flambda_backend_contents
+  rm -f $oxcaml_contents
 }
 
 compare_stublibs_or_other_dot_so_or_cmxs () {
@@ -476,20 +476,20 @@ compare_stublibs_or_other_dot_so_or_cmxs () {
   fi
 
   upstream_stublibs=$upstream_tree/lib/ocaml/$subdir/$upstream_stublibs
-  flambda_backend_stublibs=$flambda_backend_tree/lib/ocaml/$subdir/$stublibs
+  oxcaml_stublibs=$oxcaml_tree/lib/ocaml/$subdir/$stublibs
 
   ensure_exists $upstream_stublibs
-  ensure_exists $flambda_backend_stublibs
+  ensure_exists $oxcaml_stublibs
 
-  compare_object_file_symbols $upstream_stublibs $flambda_backend_stublibs
+  compare_object_file_symbols $upstream_stublibs $oxcaml_stublibs
 }
 
 compare_ml_and_mli_files () {
   dir=$1
   upstream_files=$(cd $upstream_tree/$dir && ls *.ml{,i} 2>/dev/null || true)
   for file in $upstream_files; do
-    # We don't have Optmain in the Flambda backend at present (it's called
-    # Flambda_backend_main instead).
+    # We don't have Optmain in the OxCaml at present (it's called
+    # Oxcaml_main instead).
     # Skip camlinternalMenhirLib until this warning 67 nonsense is sorted.
     if [ "$file" = "optmain.ml" ] || [ "$file" = "optmain.mli" ]; then
       echo "... skipping optmain.ml{,i}"
@@ -498,7 +498,7 @@ compare_ml_and_mli_files () {
     elif [ "$file" = "camlinternalMenhirLib.mli" ]; then
       echo "... skipping camlinternalMenhirLib.mli"
     else
-      if [ ! -f "$flambda_backend_tree/$dir/$file" ]; then
+      if [ ! -f "$oxcaml_tree/$dir/$file" ]; then
         echo "$dir/$file is missing"
         exit 1
       fi
@@ -510,7 +510,7 @@ compare_ml_and_mli_files () {
 
       $difftool \
         <(cat $upstream_tree/$dir/$file | grep -v '^# [0-9]\+ \"') \
-        <(cat $flambda_backend_tree/$dir/$file | grep -v '^# [0-9]\+ \"')
+        <(cat $oxcaml_tree/$dir/$file | grep -v '^# [0-9]\+ \"')
     fi
   done
 }
@@ -609,7 +609,7 @@ sort_body_of_objinfo_output_native () {
   echo "$result"
 }
 
-rewrite_flambda_backend_objinfo_c_library_names () {
+rewrite_oxcaml_objinfo_c_library_names () {
   while read line; do
     key=$(echo $line | sed 's/: .*//')
     data=$(echo $line | sed 's/^[^:]*: //')
@@ -643,39 +643,39 @@ compare_cma_files () {
   echo "Comparing .cma file: $cma"
 
   upstream_cma=$upstream_tree/$cma
-  flambda_backend_cma=$flambda_backend_tree/$cma
+  oxcaml_cma=$oxcaml_tree/$cma
 
   ensure_exists $upstream_cma
-  ensure_exists $flambda_backend_cma
+  ensure_exists $oxcaml_cma
 
   upstream=$(mktemp)
-  flambda_backend=$(mktemp)
+  oxcaml=$(mktemp)
 
   $ocamlobjinfo $upstream_cma \
     | remove_digests_from_objinfo_output \
     > $upstream
 
-  $ocamlobjinfo $flambda_backend_cma \
+  $ocamlobjinfo $oxcaml_cma \
     | remove_digests_from_objinfo_output \
-    | rewrite_flambda_backend_objinfo_c_library_names \
-    > $flambda_backend
+    | rewrite_oxcaml_objinfo_c_library_names \
+    > $oxcaml
 
   $difftool <(cat $upstream | header_of_objinfo_output) \
-    <(cat $flambda_backend | header_of_objinfo_output) \
+    <(cat $oxcaml | header_of_objinfo_output) \
     || (rm -f $upstream;
-        rm -f $flambda_backend;
+        rm -f $oxcaml;
         exit 1
        )
 
   $difftool <(sort_body_of_objinfo_output_bytecode $upstream) \
-    <(sort_body_of_objinfo_output_bytecode $flambda_backend) \
+    <(sort_body_of_objinfo_output_bytecode $oxcaml) \
     || (rm -f $upstream;
-        rm -f $flambda_backend;
+        rm -f $oxcaml;
         exit 1
        )
 
   rm -f $upstream
-  rm -f $flambda_backend
+  rm -f $oxcaml
 }
 
 compare_cmxa_files () {
@@ -684,13 +684,13 @@ compare_cmxa_files () {
   echo "Comparing .cmxa file: $cmxa"
 
   upstream_cmxa=$upstream_tree/$cmxa
-  flambda_backend_cmxa=$flambda_backend_tree/$cmxa
+  oxcaml_cmxa=$oxcaml_tree/$cmxa
 
   ensure_exists $upstream_cmxa
-  ensure_exists $flambda_backend_cmxa
+  ensure_exists $oxcaml_cmxa
 
   upstream=$(mktemp)
-  flambda_backend=$(mktemp)
+  oxcaml=$(mktemp)
 
   # Implementation CRCs are not checked.
 
@@ -699,28 +699,28 @@ compare_cmxa_files () {
     | grep -v "^CRC of implementation" \
     > $upstream
 
-  $ocamlobjinfo $flambda_backend_cmxa \
+  $ocamlobjinfo $oxcaml_cmxa \
     | remove_digests_from_objinfo_output \
-    | rewrite_flambda_backend_objinfo_c_library_names \
+    | rewrite_oxcaml_objinfo_c_library_names \
     | grep -v "^CRC of implementation" \
-    > $flambda_backend
+    > $oxcaml
 
   $difftool <(cat $upstream | header_of_objinfo_output) \
-    <(cat $flambda_backend | header_of_objinfo_output) \
+    <(cat $oxcaml | header_of_objinfo_output) \
     || (rm -f $upstream;
-        rm -f $flambda_backend;
+        rm -f $oxcaml;
         exit 1
        )
 
   $difftool <(sort_body_of_objinfo_output_native $upstream) \
-    <(sort_body_of_objinfo_output_native $flambda_backend) \
+    <(sort_body_of_objinfo_output_native $oxcaml) \
     || (rm -f $upstream;
-        rm -f $flambda_backend;
+        rm -f $oxcaml;
         exit 1
        )
 
   rm -f $upstream
-  rm -f $flambda_backend
+  rm -f $oxcaml
 }
 
 filter_objinfo_output_for_cmx () {
@@ -728,7 +728,7 @@ filter_objinfo_output_for_cmx () {
   | grep -v "^File " \
   | grep -v "^CRC of implementation" \
   | sed "s:$upstream_tree:INSTALL-DIR:" \
-  | sed "s:$flambda_backend_tree:INSTALL-DIR:"
+  | sed "s:$oxcaml_tree:INSTALL-DIR:"
 }
 
 remove_implementations_imported_from_cmx_objinfo_output () {
@@ -758,7 +758,7 @@ remove_implementations_imported_from_cmx_objinfo_output () {
 
 check_cmx_files () {
   # We must start from the upstream tree, as we want to ensure no .cmx files
-  # are missing in the Flambda backend tree.
+  # are missing in the OxCaml tree.
   all_upstream_cmx=$(cd $upstream_tree && find . -name "*.cmx")
 
   cmx_exclusions_pipe_sep=$(echo $cmx_exclusions | sed 's/ /|/g')
@@ -768,11 +768,11 @@ check_cmx_files () {
 
     upstream_base=$(basename $upstream_cmx)
     # No rewriting currently required.
-    flambda_backend_base=$upstream_base
+    oxcaml_base=$upstream_base
 
     # Skip ocamldoc artifacts, those for dynlink (see comment above) and
     # profiling.cmx (which we don't support).  Likewise for main, optmain and
-    # opttopstart which have different names in the Flambda backend build.
+    # opttopstart which have different names in the OxCaml build.
     # domainstate.cmx has some trivial location differences in the dune build
     # which at present cause comparison to fail under Flambda.
     # camlinternalMenhirLib.cmx has differences under Flambda which we ignore.
@@ -789,15 +789,15 @@ check_cmx_files () {
     && [[ ! "$upstream_base" =~ ^\($cmx_exclusions_pipe_sep\)$ ]] ;
     then
       upstream_cmx=$upstream_tree/$dir/$upstream_base
-      flambda_backend_cmx=$flambda_backend_tree/$dir/$flambda_backend_base
+      oxcaml_cmx=$oxcaml_tree/$dir/$oxcaml_base
 
-      if [ ! -f "$flambda_backend_cmx" ]; then
-        echo ".cmx file $flambda_backend_cmx is missing"
+      if [ ! -f "$oxcaml_cmx" ]; then
+        echo ".cmx file $oxcaml_cmx is missing"
         exit 1
       fi
 
       upstream=$(mktemp)
-      flambda_backend=$(mktemp)
+      oxcaml=$(mktemp)
 
       $ocamlobjinfo $upstream_cmx \
         | remove_digests_from_objinfo_output \
@@ -806,23 +806,23 @@ check_cmx_files () {
 
       remove_implementations_imported_from_cmx_objinfo_output $upstream
 
-      $ocamlobjinfo $flambda_backend_cmx \
+      $ocamlobjinfo $oxcaml_cmx \
         | remove_digests_from_objinfo_output \
         | filter_objinfo_output_for_cmx \
-        > $flambda_backend
+        > $oxcaml
 
       remove_implementations_imported_from_cmx_objinfo_output \
-        $flambda_backend
+        $oxcaml
 
-      $difftool $upstream $flambda_backend \
-        || (echo ".cmx file $flambda_backend_cmx doesn't match";
+      $difftool $upstream $oxcaml \
+        || (echo ".cmx file $oxcaml_cmx doesn't match";
             rm -f $upstream;
-            rm -f $flambda_backend;
+            rm -f $oxcaml;
             exit 1
            )
 
       rm -f $upstream
-      rm -f $flambda_backend
+      rm -f $oxcaml
     fi
   done
 }
@@ -834,7 +834,7 @@ check_cmi_files () {
     dir=$(dirname $upstream_cmi)
 
     upstream_base=$(basename $upstream_cmi)
-    flambda_backend_base=$upstream_base
+    oxcaml_base=$upstream_base
 
     if [[ ! "$upstream_base" =~ ^.*odoc.*$ ]] \
     && [[ ! "$upstream_base" =~ ^.*dynlink.*$ ]] \
@@ -844,7 +844,7 @@ check_cmi_files () {
     && [[ ! "$upstream_base" =~ ^opttopmain.cmi$ ]] \
     && [[ ! "$upstream_base" =~ ^opttopstart.cmi$ ]] ;
     then
-      cmi=$flambda_backend_tree/$dir/$flambda_backend_base
+      cmi=$oxcaml_tree/$dir/$oxcaml_base
       if [ ! -f "$cmi" ]; then
         echo ".cmi file $cmi is missing"
         exit 1
@@ -860,7 +860,7 @@ check_cmt_files () {
     dir=$(dirname $upstream_cmt)
 
     upstream_base=$(basename $upstream_cmt)
-    flambda_backend_base=$upstream_base
+    oxcaml_base=$upstream_base
 
     if [[ ! "$upstream_base" =~ ^.*odoc.*$ ]] \
     && [[ ! "$upstream_base" =~ ^.*dynlink.*$ ]] \
@@ -870,7 +870,7 @@ check_cmt_files () {
     && [[ ! "$upstream_base" =~ ^opttopmain.cmt$ ]] \
     && [[ ! "$upstream_base" =~ ^opttopstart.cmt$ ]];
     then
-      cmt=$flambda_backend_tree/$dir/$flambda_backend_base
+      cmt=$oxcaml_tree/$dir/$oxcaml_base
       if [ ! -f "$cmt" ]; then
         echo ".cmt file $cmt is missing"
         exit 1
@@ -886,7 +886,7 @@ check_cmti_files () {
     dir=$(dirname $upstream_cmti)
 
     upstream_base=$(basename $upstream_cmti)
-    flambda_backend_base=$upstream_base
+    oxcaml_base=$upstream_base
 
     if [[ ! "$upstream_base" =~ ^.*odoc.*$ ]] \
     && [[ ! "$upstream_base" =~ ^.*dynlink.*$ ]] \
@@ -895,7 +895,7 @@ check_cmti_files () {
     && [[ ! "$upstream_base" =~ ^optmain.cmti$ ]] \
     && [[ ! "$upstream_base" =~ ^opttopmain.cmti$ ]];
     then
-      cmti=$flambda_backend_tree/$dir/$flambda_backend_base
+      cmti=$oxcaml_tree/$dir/$oxcaml_base
       if [ ! -f "$cmti" ]; then
         echo ".cmti file $cmti is missing"
         exit 1
@@ -906,16 +906,16 @@ check_cmti_files () {
 
 check_dynlink_cma_and_cmxa () {
   upstream_cma=$upstream_tree/lib/ocaml/dynlink.cma
-  flambda_backend_cma=$flambda_backend_tree/lib/ocaml/dynlink.cma
+  oxcaml_cma=$oxcaml_tree/lib/ocaml/dynlink.cma
 
   upstream_cmxa=$upstream_tree/lib/ocaml/dynlink.cmxa
-  flambda_backend_cmxa=$flambda_backend_tree/lib/ocaml/dynlink.cmxa
+  oxcaml_cmxa=$oxcaml_tree/lib/ocaml/dynlink.cmxa
 
   $difftool <($ocamlobjinfo $upstream_cma | header_of_objinfo_output) \
-    <($ocamlobjinfo $flambda_backend_cma | header_of_objinfo_output)
+    <($ocamlobjinfo $oxcaml_cma | header_of_objinfo_output)
 
   $difftool <($ocamlobjinfo $upstream_cmxa | header_of_objinfo_output) \
-    <($ocamlobjinfo $flambda_backend_cmxa | header_of_objinfo_output)
+    <($ocamlobjinfo $oxcaml_cmxa | header_of_objinfo_output)
 }
 
 # 1. Check immediate subdirs of installation root match (just the names of
@@ -923,11 +923,11 @@ check_dynlink_cma_and_cmxa () {
 
 echo "** Immediate subdirs of installation root"
 
-# The Flambda backend does not build or install man pages.
+# OxCaml does not build or install man pages.
 upstream_subdirs=$(ls -1 $upstream_tree | grep -v '^man$')
-flambda_backend_subdirs=$(ls -1 $flambda_backend_tree)
+oxcaml_subdirs=$(ls -1 $oxcaml_tree)
 
-if [ "$upstream_subdirs" != "$flambda_backend_subdirs" ]; then
+if [ "$upstream_subdirs" != "$oxcaml_subdirs" ]; then
   echo -e "Subdirs of install tree don't match, expected:\n$upstream_subdirs"
   exit 1
 fi
@@ -949,11 +949,11 @@ upstream_bin=$(ls $upstream_tree/bin \
   | grep -v '^ocamlprof.opt$' \
   )
 
-flambda_backend_bin=$(ls $flambda_backend_tree/bin)
+oxcaml_bin=$(ls $oxcaml_tree/bin)
 
-if [ "$upstream_bin" != "$flambda_backend_bin" ]; then
+if [ "$upstream_bin" != "$oxcaml_bin" ]; then
   echo "Executables in bin/ don't match:"
-  $difftool <(echo $upstream_bin) <(echo $flambda_backend_bin)
+  $difftool <(echo $upstream_bin) <(echo $oxcaml_bin)
   exit 1
 fi
 
@@ -968,8 +968,8 @@ for exe in $lib_exes; do
     echo "Executable $exe in lib/ocaml/ not found in upstream tree"
     exit 1
   fi
-  if [ ! -f $flambda_backend_tree/lib/ocaml/$exe ]; then
-    echo "Executable $exe in lib/ocaml/ not found in Flambda backend tree"
+  if [ ! -f $oxcaml_tree/lib/ocaml/$exe ]; then
+    echo "Executable $exe in lib/ocaml/ not found in OxCaml tree"
     exit 1
   fi
 done
@@ -979,9 +979,9 @@ done
 echo "** Immediate subdirs of lib/"
 
 upstream_subdirs=$(ls -1 $upstream_tree/lib)
-flambda_backend_subdirs=$(ls -1 $flambda_backend_tree/lib)
+oxcaml_subdirs=$(ls -1 $oxcaml_tree/lib)
 
-if [ "$upstream_subdirs" != "$flambda_backend_subdirs" ]; then
+if [ "$upstream_subdirs" != "$oxcaml_subdirs" ]; then
   echo -e "Subdirs of install tree don't match, expected:\n$upstream_subdirs"
   exit 1
 fi
@@ -991,11 +991,11 @@ fi
 echo "** VERSION files"
 
 upstream_version=$(cat $upstream_tree/lib/ocaml/VERSION)
-flambda_backend_version=$(cat $flambda_backend_tree/lib/ocaml/VERSION)
+oxcaml_version=$(cat $oxcaml_tree/lib/ocaml/VERSION)
 
-if [ "$upstream_version" != "$flambda_backend_version" ]; then
+if [ "$upstream_version" != "$oxcaml_version" ]; then
   echo -e "VERSION files in lib/ocaml/ do not match:"
-  $difftool <(echo $upstream_version) <(echo $flambda_backend_version)
+  $difftool <(echo $upstream_version) <(echo $oxcaml_version)
   exit 1
 fi
 
@@ -1014,12 +1014,12 @@ echo "** All files in lib/ocaml/caml/"
 
 upstream_files=$(cd $upstream_tree/lib/ocaml/caml/ && ls)
 for file in $upstream_files; do
-  if [ ! -f "$flambda_backend_tree/lib/ocaml/caml/$file" ]; then
+  if [ ! -f "$oxcaml_tree/lib/ocaml/caml/$file" ]; then
     echo "lib/ocaml/$file is missing"
     exit 1
   fi
   $difftool $upstream_tree/lib/ocaml/caml/$file \
-    $flambda_backend_tree/lib/ocaml/caml/$file
+    $oxcaml_tree/lib/ocaml/caml/$file
 done
 
 # 8. Check .a files match (archive filenames, archive member filenames, symbols
@@ -1048,7 +1048,7 @@ done
 #   lib/ocaml/compiler-libs/optmain.cmo
 #   lib/ocaml/profiling.cmo
 # We don't use [Profiling] and the three driver files have different
-# names in the Flambda backend build.  It seems unlikely the absence of
+# names in the OxCaml build.  It seems unlikely the absence of
 # these .cmo files will cause a problem.  So we just check for std_exit.cmo
 # and the corresponding .o file for native use.
 
@@ -1057,8 +1057,8 @@ if [ ! -f "$upstream_tree/lib/ocaml/std_exit.o" ]; then
   exit 1
 fi
 
-if [ ! -f "$flambda_backend_tree/lib/ocaml/std_exit.o" ]; then
-  echo Expected lib/ocaml/std_exit.o in Flambda backend tree
+if [ ! -f "$oxcaml_tree/lib/ocaml/std_exit.o" ]; then
+  echo Expected lib/ocaml/std_exit.o in OxCaml tree
   exit 1
 fi
 
@@ -1067,8 +1067,8 @@ if [ ! -f "$upstream_tree/lib/ocaml/std_exit.cmo" ]; then
   exit 1
 fi
 
-if [ ! -f "$flambda_backend_tree/lib/ocaml/std_exit.cmo" ]; then
-  echo Expected lib/ocaml/std_exit.cmo in Flambda backend tree
+if [ ! -f "$oxcaml_tree/lib/ocaml/std_exit.cmo" ]; then
+  echo Expected lib/ocaml/std_exit.cmo in OxCaml tree
   exit 1
 fi
 
@@ -1138,8 +1138,8 @@ for file in $sundry_text_files_to_compare; do
   $difftool \
     <((cat $upstream_tree/lib/ocaml/$file \
         | sed "s:$upstream_tree:INSTALL-DIR:"); echo) \
-    <((cat $flambda_backend_tree/lib/ocaml/$file \
-        | sed "s:$flambda_backend_tree:INSTALL-DIR:"); echo)
+    <((cat $oxcaml_tree/lib/ocaml/$file \
+        | sed "s:$oxcaml_tree:INSTALL-DIR:"); echo)
 done
 
 # 20. Makefile.config comparison.
@@ -1152,7 +1152,7 @@ $difftool \
       | grep -v "^WITH_OCAMLTEST=" \
       | grep -v "^STDLIB_MANPAGES=" \
       | grep -v "^prefix=") \
-  <(cat $flambda_backend_tree/lib/ocaml/Makefile.config \
+  <(cat $oxcaml_tree/lib/ocaml/Makefile.config \
       | grep -v "^CONFIGURE_ARGS=" \
       | grep -v "^WITH_OCAMLTEST=" \
       | grep -v "^STDLIB_MANPAGES=" \

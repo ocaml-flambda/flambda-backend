@@ -27,7 +27,7 @@
 
 open! Int_replace_polymorphic_compare
 module C = Cfg
-module Dll = Flambda_backend_utils.Doubly_linked_list
+module Dll = Oxcaml_utils.Doubly_linked_list
 
 (* Convert simple [Switch] to branches. *)
 let simplify_switch (block : C.basic_block) labels =

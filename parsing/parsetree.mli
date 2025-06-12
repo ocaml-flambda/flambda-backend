@@ -1214,7 +1214,7 @@ and module_expr_desc =
       (** [Foo(Param1)(Arg1(Param2)(Arg2)) [@jane.non_erasable.instances]]
 
           The name of an instance module. Gets converted to [Global.Name.t] in
-          the flambda-backend compiler. *)
+          the OxCaml compiler. *)
 
 and module_instance =
   { pmod_instance_head : string;

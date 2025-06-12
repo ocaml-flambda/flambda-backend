@@ -2,7 +2,7 @@
 
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 let log_function = lazy (make_log_function ~label:"ls")
 
@@ -170,7 +170,10 @@ module Interval = struct
     DLL.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
   let overlap : t -> t -> bool =
-   fun left right -> Range.overlap left.ranges right.ranges
+   fun left right ->
+    if left.end_ < right.begin_ || right.end_ < left.begin_
+    then false
+    else Range.overlap left.ranges right.ranges
 
   let is_live : t -> pos:int -> bool = fun t ~pos -> Range.is_live t.ranges ~pos
 
