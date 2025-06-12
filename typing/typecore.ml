@@ -9447,7 +9447,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
 and type_let_def_wrap_warnings
     ?(check = fun s -> Warnings.Unused_var s)
     ?(check_strict = fun s -> Warnings.Unused_var_strict s)
-    ?(check_mutated = fun s -> Warnings.Unmutated_mut_var s)
+    ?(check_mutated = fun s -> Warnings.Unused_mutable s)
     ~is_recursive ~entirely_functions ~exp_env ~new_env ~spat_sexp_list
     ~attrs_list ~mode_pat_typ_list ~pvs
     type_def =

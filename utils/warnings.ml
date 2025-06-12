@@ -122,7 +122,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
-  | Unmutated_mut_var of string             (* 74 *)
+  | Unused_mutable of string                (* 74 *)
   | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
@@ -217,7 +217,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
-  | Unmutated_mut_var _ -> 74
+  | Unused_mutable _ -> 74
   | Incompatible_with_upstream _ -> 187
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
@@ -573,9 +573,9 @@ let descriptions = [
                    (struct end) rather than to ().";
     since = since 5 1 };
   { number = 74;
-    names = ["unmutated-mut-var"];
+    names = ["unused-mutable"];
     description =
-    "Suspicious mutable variable was never mutated: mutable variable that is\n\
+    "Suspicious mutable variable is never mutated: mutable variable that is\n\
     \    bound with \"let\" or \"as\", and doesn't start with an\n\
     \    underscore (\"_\") character.";
     since = since 5 2 };
@@ -1222,7 +1222,7 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
-  | Unmutated_mut_var v -> "mutable variable " ^ v ^ " was never mutated."
+  | Unused_mutable v -> "mutable variable " ^ v ^ " is never mutated."
   | Incompatible_with_upstream (Immediate_erasure id)  ->
       Printf.sprintf
       "Usage of layout immediate/immediate64 in %s \n\

@@ -392,7 +392,7 @@ let x_18_1 =
 Line 2, characters 14-15:
 2 |   let mutable x = 3 in x + 1
                   ^
-Warning 74 [unmutated-mut-var]: mutable variable x was never mutated.
+Warning 74 [unused-mutable]: mutable variable x is never mutated.
 
 val x_18_1 : int = 4
 |}]

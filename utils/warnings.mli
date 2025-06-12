@@ -127,7 +127,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
-  | Unmutated_mut_var of string             (* 74 *)
+  | Unused_mutable of string                (* 74 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
   | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
   | Unerasable_position_argument            (* 188 *)
