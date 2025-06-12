@@ -39,6 +39,13 @@ let check_equal_3 name f1 f2 arg1 arg2 arg3 =
   else Misc.fatal_errorf "Mismatch on %s:@ %a@ vs@ %a"
       name Printcmm.expression r1 Printcmm.expression r2
 
+let check_equal_int_1 name f1 f2 arg1 =
+  let r1 = f1 arg1 in
+  let r2 = f2 arg1 in
+  if r1 = r2 then r1
+  else Misc.fatal_errorf "Mismatch on %s:@ %d@ vs@ %d@ Arg is %a"
+      name r1 r2 Printcmm.expression arg1
+
 let arch_bits = Arch.size_int * 8
 
 type arity =
@@ -340,6 +347,7 @@ let add_no_overflow n x c dbg =
   if d = 0 then c else Cop (Caddi, [c; Cconst_int (d, dbg)], dbg)
 
 let is_defined_shift n = 0 <= n && n < arch_bits
+let is_defined_shift' n = fun e -> is_defined_shift e#.n
 
 (** returns true only if [e + n] is definitely the same as [e | n] *)
 let[@inline] can_interchange_add_with_or e n =
@@ -512,6 +520,24 @@ let rec max_signed_bit_length e =
   | Cop ((Cand | Cor | Cxor), [x; y], _) ->
     Int.max (max_signed_bit_length x) (max_signed_bit_length y)
   | _ -> arch_bits
+
+let rec max_signed_bit_length' e =
+  P.run_default ~default:(fun _ -> arch_bits) (prefer_or e) [
+    Binop (Comparison, Any c1, Any c2) => (fun _e -> 1);
+    When (Binop (And, Any c, Const_int n), (fun e -> e#.n > 0))
+    => (fun e -> 1 + Misc.log2 e#.n);
+    When (Binop (Lsl, Any c, Const_int n), is_defined_shift' n)
+    => (fun e -> Int.min arch_bits (max_signed_bit_length' e#.c + e#.n));
+    When (Binop (Asr, Any c, Const_int n), is_defined_shift' n)
+    => (fun e -> Int.min arch_bits (max_signed_bit_length' e#.c - e#.n));
+    When (Binop (Lsr, Any c, Const_int n), is_defined_shift' n)
+    => (fun e -> if e#.n = 0 then max_signed_bit_length' e#.c else arch_bits - e#.n);
+    Binop (Bitwise_op, Any c1, Any c2)
+    => (fun e -> Int.max (max_signed_bit_length' e#.c1) (max_signed_bit_length' e#.c2));
+  ]
+
+let max_signed_bit_length =
+  check_equal_int_1 "max_signed_bit_length" max_signed_bit_length max_signed_bit_length'
 
 let ignore_low_bit_int = function
   | Cop
