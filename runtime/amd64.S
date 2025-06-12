@@ -504,22 +504,24 @@ X(0) X(1) X(2) X(3) X(4) X(5) X(6) X(7) X(8) X(9) X(10) X(11) X(12) X(13) X(14) 
 DO_0_15(X) \
 X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(29) X(30) X(31)
 
-#define SAVE_XMM(i) movupd %xmm##i,  (i*16 + 13*8)(%r15);
+#define SIMD_REGS_OFFSET (13*8) /* gc_regs_bucket starts with 13 int64 regs */
+
+#define SAVE_XMM(i) movupd %xmm##i,  (i*16 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_XMM_REGS DO_0_15(SAVE_XMM)
 
-#define RESTORE_XMM(i) movupd (i*16 + 13*8)(%r15), %xmm##i;
+#define RESTORE_XMM(i) movupd (i*16 + SIMD_REGS_OFFSET)(%r15), %xmm##i;
 #define RESTORE_XMM_REGS DO_0_15(RESTORE_XMM)
 
-#define SAVE_YMM(i) vmovupd %ymm##i,  (i*32 + 13*8)(%r15);
+#define SAVE_YMM(i) vmovupd %ymm##i,  (i*32 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_YMM_REGS DO_0_15(SAVE_YMM)
 
-#define RESTORE_YMM(i) vmovupd (i*32 + 13*8)(%r15), %ymm##i;
+#define RESTORE_YMM(i) vmovupd (i*32 + SIMD_REGS_OFFSET)(%r15), %ymm##i;
 #define RESTORE_YMM_REGS DO_0_15(RESTORE_YMM)
 
-#define SAVE_ZMM(i) vmovupd  %zmm##i, (i*64 + 13*8)(%r15);
+#define SAVE_ZMM(i) vmovupd  %zmm##i, (i*64 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_ZMM_REGS DO_0_31(SAVE_ZMM)
 
-#define RESTORE_ZMM(i) vmovupd  (i*64 + 13*8)(%r15), %zmm##i;
+#define RESTORE_ZMM(i) vmovupd  (i*64 + SIMD_REGS_OFFSET)(%r15), %zmm##i;
 #define RESTORE_ZMM_REGS DO_0_31(RESTORE_ZMM)
 
 /* Save all of the registers that may be in use to a free gc_regs bucket.
@@ -578,32 +580,32 @@ X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(
    arguments and return values in the System V amd64 ABI.
    Returns: bucket in %r15. Clobbers %r11 (after saving it) */
 #ifdef WITH_THREAD_SANITIZER
-#define TSAN_SAVE_CALLER_REGS                               \
-    /* First, save the young_ptr. */                   \
-        movq    %r15, Caml_state(young_ptr);           \
-    /* Now, use %r15 to point to the gc_regs bucket */ \
-    /* We save %r11 first to allow it to be scratch */ \
-        movq    Caml_state(gc_regs_buckets), %r15;     \
-        movq    %r11, 11*8(%r15);                      \
-        movq    0(%r15), %r11; /* next ptr */          \
-        movq    %r11, Caml_state(gc_regs_buckets);     \
-        movq    %rax,         0*8(%r15);               \
-        movq    %rdi,         2*8(%r15);               \
-        movq    %rsi,         3*8(%r15);               \
-        movq    %rdx,         4*8(%r15);               \
-        movq    %rcx,         5*8(%r15);               \
-        movq    %r8,          6*8(%r15);               \
-        movq    %r9,          7*8(%r15);               \
-        movq    %r10,        10*8(%r15);               \
-             /* %r11 is at   11*8(%r15); */            \
-        movupd  %xmm0,   (0*16 + 13*8)(%r15);          \
-        movupd  %xmm1,   (1*16 + 13*8)(%r15);          \
-        movupd  %xmm2,   (2*16 + 13*8)(%r15);          \
-        movupd  %xmm3,   (3*16 + 13*8)(%r15);          \
-        movupd  %xmm4,   (4*16 + 13*8)(%r15);          \
-        movupd  %xmm5,   (5*16 + 13*8)(%r15);          \
-        movupd  %xmm6,   (6*16 + 13*8)(%r15);          \
-        movupd  %xmm7,   (7*16 + 13*8)(%r15);
+#define TSAN_SAVE_CALLER_REGS                            \
+    /* First, save the young_ptr. */                     \
+        movq    %r15, Caml_state(young_ptr);             \
+    /* Now, use %r15 to point to the gc_regs bucket */   \
+    /* We save %r11 first to allow it to be scratch */   \
+        movq    Caml_state(gc_regs_buckets), %r15;       \
+        movq    %r11, 11*8(%r15);                        \
+        movq    0(%r15), %r11; /* next ptr */            \
+        movq    %r11, Caml_state(gc_regs_buckets);       \
+        movq    %rax,         0*8(%r15);                 \
+        movq    %rdi,         2*8(%r15);                 \
+        movq    %rsi,         3*8(%r15);                 \
+        movq    %rdx,         4*8(%r15);                 \
+        movq    %rcx,         5*8(%r15);                 \
+        movq    %r8,          6*8(%r15);                 \
+        movq    %r9,          7*8(%r15);                 \
+        movq    %r10,        10*8(%r15);                 \
+             /* %r11 is at   11*8(%r15); */              \
+        movupd  %xmm0,   (0*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm1,   (1*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm2,   (2*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm3,   (3*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm4,   (4*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm5,   (5*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm6,   (6*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm7,   (7*16 + SIMD_REGS_OFFSET)(%r15) ;
 #else
 #define TSAN_SAVE_CALLER_REGS
 #endif
@@ -611,29 +613,29 @@ X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(
 /* Restore registers saved by TSAN_SAVE_CALLER_REGS. Expects gc_regs bucket in
    %r15 */
 #ifdef WITH_THREAD_SANITIZER
-#define TSAN_RESTORE_CALLER_REGS                            \
-    /* Restore %rax, freeing up the next ptr slot */   \
-        movq    0*8(%r15), %rax;                       \
-        movq    Caml_state(gc_regs_buckets), %r11;     \
-        movq    %r11, 0(%r15); /* next ptr */          \
-        movq    %r15, Caml_state(gc_regs_buckets);     \
-           /* above:  0*8(%r15),%rax; */               \
-        movq          2*8(%r15),%rdi;                  \
-        movq          3*8(%r15),%rsi;                  \
-        movq          4*8(%r15),%rdx;                  \
-        movq          5*8(%r15),%rcx;                  \
-        movq          6*8(%r15),%r8;                   \
-        movq          7*8(%r15),%r9;                   \
-        movq         10*8(%r15),%r10;                  \
-        movq         11*8(%r15),%r11;                  \
-        movupd    (0*16 + 13*8)(%r15),%xmm0;           \
-        movupd    (1*16 + 13*8)(%r15),%xmm1;           \
-        movupd    (2*16 + 13*8)(%r15),%xmm2;           \
-        movupd    (3*16 + 13*8)(%r15),%xmm3;           \
-        movupd    (4*16 + 13*8)(%r15),%xmm4;           \
-        movupd    (5*16 + 13*8)(%r15),%xmm5;           \
-        movupd    (6*16 + 13*8)(%r15),%xmm6;           \
-        movupd    (7*16 + 13*8)(%r15),%xmm7;           \
+#define TSAN_RESTORE_CALLER_REGS                         \
+    /* Restore %rax, freeing up the next ptr slot */     \
+        movq    0*8(%r15), %rax;                         \
+        movq    Caml_state(gc_regs_buckets), %r11;       \
+        movq    %r11, 0(%r15); /* next ptr */            \
+        movq    %r15, Caml_state(gc_regs_buckets);       \
+           /* above:  0*8(%r15),%rax; */                 \
+        movq          2*8(%r15),%rdi;                    \
+        movq          3*8(%r15),%rsi;                    \
+        movq          4*8(%r15),%rdx;                    \
+        movq          5*8(%r15),%rcx;                    \
+        movq          6*8(%r15),%r8;                     \
+        movq          7*8(%r15),%r9;                     \
+        movq         10*8(%r15),%r10;                    \
+        movq         11*8(%r15),%r11;                    \
+        movupd    (0*16 + SIMD_REGS_OFFSET)(%r15),%xmm0; \
+        movupd    (1*16 + SIMD_REGS_OFFSET)(%r15),%xmm1; \
+        movupd    (2*16 + SIMD_REGS_OFFSET)(%r15),%xmm2; \
+        movupd    (3*16 + SIMD_REGS_OFFSET)(%r15),%xmm3; \
+        movupd    (4*16 + SIMD_REGS_OFFSET)(%r15),%xmm4; \
+        movupd    (5*16 + SIMD_REGS_OFFSET)(%r15),%xmm5; \
+        movupd    (6*16 + SIMD_REGS_OFFSET)(%r15),%xmm6; \
+        movupd    (7*16 + SIMD_REGS_OFFSET)(%r15),%xmm7; \
         movq    Caml_state(young_ptr), %r15
 #else
 #define TSAN_RESTORE_CALLER_REGS

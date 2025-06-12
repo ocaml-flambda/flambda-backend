@@ -23,12 +23,8 @@
 #define Max_array_wosize                   (Max_wosize)
 #define Max_custom_array_wosize            (Max_wosize - 1)
 
-// SIMD is only supported on 64-bit targets
-#define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / 2)
-#define Max_unboxed_vec256_array_wosize    (Max_custom_array_wosize / 4)
-
-#define Words_per_vec128 2
-#define Words_per_vec256 4
+#define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / Words_per_vec128)
+#define Max_unboxed_vec256_array_wosize    (Max_custom_array_wosize / Words_per_vec256)
 
 // Defined in array.c
 CAMLextern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
@@ -60,8 +56,6 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
 
 static value caml_make_unboxed_vec128_vect0(value len, int local)
 {
-  /* This is only used on 64-bit targets. */
-
   mlsize_t num_elements = Long_val(len);
   if (num_elements > Max_unboxed_vec128_array_wosize)
     caml_invalid_argument("Array.make");
@@ -115,8 +109,6 @@ CAMLprim value caml_unboxed_vec256_vect_blit(value a1, value ofs1, value a2,
 
 static value caml_make_unboxed_vec256_vect0(value len, int local)
 {
-  /* This is only used on 64-bit targets. */
-
   mlsize_t num_elements = Long_val(len);
   if (num_elements > Max_unboxed_vec256_array_wosize)
     caml_invalid_argument("Array.make");

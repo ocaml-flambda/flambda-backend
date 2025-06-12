@@ -48,9 +48,6 @@ extern int caml_parser_trace;
 extern char caml_system__code_begin, caml_system__code_end;
 extern uintnat caml_prelinking_in_use;
 
-/* Implemented in isa.c. */
-extern void caml_init_isa_extensions(void);
-
 /* Initialize the atom table and the static data and code area limits. */
 
 struct segment { char * begin; char * end; };

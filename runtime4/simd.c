@@ -23,12 +23,8 @@
 #define Max_array_wosize                   (Max_wosize)
 #define Max_custom_array_wosize            (Max_wosize - 1)
 
-// SIMD is only supported on 64-bit targets
-#define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / 2)
-#define Max_unboxed_vec256_array_wosize    (Max_custom_array_wosize / 4)
-
-#define Words_per_vec128 2
-#define Words_per_vec256 4
+#define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / Words_per_vec128)
+#define Max_unboxed_vec256_array_wosize    (Max_custom_array_wosize / Words_per_vec256)
 
 // Defined in array.c
 CAMLextern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
@@ -49,8 +45,6 @@ CAMLexport struct custom_operations caml_unboxed_vec128_array_ops = {
 
 CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
                                              value ofs2, value n) {
-    /* See memory model [MM] notes in memory.c */
-    atomic_thread_fence(memory_order_acquire);
     // Need to skip the custom_operations field
     memmove(((uintnat *)a2 + 1) + Long_val(ofs2) * Words_per_vec128,
             ((uintnat *)a1 + 1) + Long_val(ofs1) * Words_per_vec128,
@@ -60,8 +54,6 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
 
 static value caml_make_unboxed_vec128_vect0(value len, int local)
 {
-  /* This is only used on 64-bit targets. */
-
   mlsize_t num_elements = Long_val(len);
   if (num_elements > Max_unboxed_vec128_array_wosize)
     caml_invalid_argument("Array.make");
@@ -104,8 +96,6 @@ CAMLexport struct custom_operations caml_unboxed_vec256_array_ops = {
 
 CAMLprim value caml_unboxed_vec256_vect_blit(value a1, value ofs1, value a2,
                                              value ofs2, value n) {
-    /* See memory model [MM] notes in memory.c */
-    atomic_thread_fence(memory_order_acquire);
     // Need to skip the custom_operations field
     memmove(((uintnat *)a2 + 1) + Long_val(ofs2) * Words_per_vec256,
             ((uintnat *)a1 + 1) + Long_val(ofs1) * Words_per_vec256,
@@ -115,8 +105,6 @@ CAMLprim value caml_unboxed_vec256_vect_blit(value a1, value ofs1, value a2,
 
 static value caml_make_unboxed_vec256_vect0(value len, int local)
 {
-  /* This is only used on 64-bit targets. */
-
   mlsize_t num_elements = Long_val(len);
   if (num_elements > Max_unboxed_vec256_array_wosize)
     caml_invalid_argument("Array.make");
