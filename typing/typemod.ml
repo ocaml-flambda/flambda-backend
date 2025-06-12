@@ -1146,7 +1146,11 @@ let rec approx_modtype env smty =
               ignore (Env.lookup_module_path ~use:false ~load:false
                         ~loc:lid'.loc lid'.txt env))
         constraints;
-      body
+      let init_sg = extract_sig env smty.pmty_loc body in
+      let final_sg =
+        List.fold_left (approx_with ~loc:smty.pmty_loc env) init_sg constraints
+      in
+      Mty_signature final_sg
   | Pmty_typeof smod ->
       let (_, mty) = !type_module_type_of_fwd env smod in
       mty
@@ -1162,6 +1166,48 @@ let rec approx_modtype env smty =
       in
       let aliasable = (not (Env.is_functor_arg path env)) in
       Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
+
+and approx_with ~loc env sg constr =
+  let open struct
+    type namespace = Type | Module | Module_type
+  end in
+  let rec remove_from_sg namespace path env sg =
+    List.filter_map (remove_from_sig_item namespace path env sg) sg
+  and remove_from_sig_item namespace path env sg_for_env item =
+    match path, namespace, item with
+    | [s], Type, Sig_type (id, _, _, _)
+        when Ident.name id = s ->
+      None
+    | [s], Module, Sig_module (id, _, _, _, _)
+        when Ident.name id = s ->
+      None
+    | [s], Module_type, Sig_modtype (id, _, _)
+        when Ident.name id = s ->
+      None
+    | s :: path, namespace,
+      Sig_module (id, presence, md, rs, priv)
+        when Ident.name id = s ->
+      let env = Env.add_signature sg_for_env env in
+      let sg = extract_sig env loc md.md_type in
+      let md =
+        { md with
+          md_type = Mty_signature (remove_from_sg namespace path env sg) }
+      in
+      Some (Sig_module (id, presence, md, rs, priv))
+    | _ ->
+      Some item
+  in
+  (* Removing destructively-substituted items approximates [transl_with],
+     as all approximated types are treated as abstract. *)
+  match constr with
+  | Pwith_typesubst (lid, _) ->
+    remove_from_sg Type (Longident.flatten lid.txt) env sg
+  | Pwith_modsubst (lid, _) ->
+    remove_from_sg Module (Longident.flatten lid.txt) env sg
+  | Pwith_modtypesubst (lid, _) ->
+    remove_from_sg Module_type (Longident.flatten lid.txt) env sg
+  | _ ->
+    sg
 
 and approx_module_declaration env pmd =
   {
