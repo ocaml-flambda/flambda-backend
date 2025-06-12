@@ -65,7 +65,7 @@ let is_long n =
   (* Long frames must fit in 32-bit integer and not truncated upon conversion
      from int on any target. *)
   if n > 0x3FFF_FFFF then raise (Error (Stack_frame_way_too_large n));
-  n >= !Flambda_backend_flags.long_frames_threshold
+  n >= !Oxcaml_flags.long_frames_threshold
 
 let is_long_stack_index n =
   let is_reg n = n land 1 = 1 in
@@ -81,7 +81,7 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
     || is_long (List.length live_offset)
     || List.exists is_long_stack_index live_offset
   in
-  if fd_long && not !Flambda_backend_flags.allow_long_frames
+  if fd_long && not !Oxcaml_flags.allow_long_frames
   then raise (Error (Stack_frame_too_large frame_size));
   frame_descriptors
     := { fd_lbl = label;
@@ -185,7 +185,7 @@ let emit_frames a =
        below. *)
     if fd.fd_long
     then (
-      emit_u16 Flambda_backend_flags.max_long_frames_threshold;
+      emit_u16 Oxcaml_flags.max_long_frames_threshold;
       a.efa_align 4);
     let emit_signed_16_or_32 = if fd.fd_long then emit_i32 else emit_i16 in
     let emit_unsigned_16_or_32 = if fd.fd_long then emit_u32 else emit_u16 in
@@ -416,8 +416,8 @@ let reduce_heap_size ~reset =
   (* Uses [major_words] because it doesn't require a heap traversal to compute
      and for this workload a majority of major words are live at this point. *)
   let heap_reduction_threshold =
-    if !Flambda_backend_flags.heap_reduction_threshold >= 0
-    then float !Flambda_backend_flags.heap_reduction_threshold
+    if !Oxcaml_flags.heap_reduction_threshold >= 0
+    then float !Oxcaml_flags.heap_reduction_threshold
     else Float.infinity
   in
   if Float.compare major_words heap_reduction_threshold > 0
@@ -475,14 +475,14 @@ module Dwarf_helpers = struct
   let emit_dwarf () =
     Option.iter
       (Dwarf.emit
-         ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+         ~basic_block_sections:!Oxcaml_flags.basic_block_sections
          ~binary_backend_available:!binary_backend_available)
       !dwarf
 
   let emit_delayed_dwarf () =
     Option.iter
       (Dwarf.emit_delayed
-         ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+         ~basic_block_sections:!Oxcaml_flags.basic_block_sections
          ~binary_backend_available:!binary_backend_available)
       !dwarf
 

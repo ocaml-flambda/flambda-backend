@@ -14,16 +14,14 @@
 
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
-let debug_flambda2 () = !Flambda_backend_flags.Flambda2.debug
+let debug_flambda2 () = !Oxcaml_flags.Flambda2.debug
 
-let with_default (r : 'a Flambda_backend_flags.or_default)
-    ~(f : Flambda_backend_flags.Flambda2.flags -> 'a) =
+let with_default (r : 'a Oxcaml_flags.or_default)
+    ~(f : Oxcaml_flags.Flambda2.flags -> 'a) =
   match r with
   | Set a -> a
   | Default ->
-    f
-      (Flambda_backend_flags.Flambda2.default_for_opt_level
-         !Flambda_backend_flags.opt_level)
+    f (Oxcaml_flags.Flambda2.default_for_opt_level !Oxcaml_flags.opt_level)
 
 type 'a mode =
   | Normal : [`Normal] mode
@@ -32,38 +30,35 @@ type 'a mode =
 type any_mode = Mode : _ mode -> any_mode
 
 let classic_mode () =
-  !Flambda_backend_flags.Flambda2.classic_mode
+  !Oxcaml_flags.Flambda2.classic_mode
   |> with_default ~f:(fun d -> d.classic_mode)
 
 let mode () = if classic_mode () then Mode Classic else Mode Normal
 
 let join_points () =
-  !Flambda_backend_flags.Flambda2.join_points
-  |> with_default ~f:(fun d -> d.join_points)
+  !Oxcaml_flags.Flambda2.join_points |> with_default ~f:(fun d -> d.join_points)
 
 let unbox_along_intra_function_control_flow () =
-  !Flambda_backend_flags.Flambda2.unbox_along_intra_function_control_flow
+  !Oxcaml_flags.Flambda2.unbox_along_intra_function_control_flow
   |> with_default ~f:(fun d -> d.unbox_along_intra_function_control_flow)
 
 let backend_cse_at_toplevel () =
-  !Flambda_backend_flags.Flambda2.backend_cse_at_toplevel
+  !Oxcaml_flags.Flambda2.backend_cse_at_toplevel
   |> with_default ~f:(fun d -> d.backend_cse_at_toplevel)
 
 let cse_depth () =
-  !Flambda_backend_flags.Flambda2.cse_depth
-  |> with_default ~f:(fun d -> d.cse_depth)
+  !Oxcaml_flags.Flambda2.cse_depth |> with_default ~f:(fun d -> d.cse_depth)
 
 let join_depth () =
-  !Flambda_backend_flags.Flambda2.join_depth
-  |> with_default ~f:(fun d -> d.join_depth)
+  !Oxcaml_flags.Flambda2.join_depth |> with_default ~f:(fun d -> d.join_depth)
 
-type join_algorithm = Flambda_backend_flags.join_algorithm =
+type join_algorithm = Oxcaml_flags.join_algorithm =
   | Binary
   | N_way
   | Checked
 
 let join_algorithm () =
-  !Flambda_backend_flags.Flambda2.join_algorithm
+  !Oxcaml_flags.Flambda2.join_algorithm
   |> with_default ~f:(fun d -> d.join_algorithm)
 
 let use_n_way_join () =
@@ -74,14 +69,14 @@ let use_n_way_join () =
   | N_way -> true
 
 let enable_reaper () =
-  !Flambda_backend_flags.Flambda2.enable_reaper
+  !Oxcaml_flags.Flambda2.enable_reaper
   |> with_default ~f:(fun d -> d.enable_reaper)
 
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =
   let when_ =
-    !Flambda_backend_flags.Flambda2.function_result_types
+    !Oxcaml_flags.Flambda2.function_result_types
     |> with_default ~f:(fun d -> d.function_result_types)
   in
   match when_ with
@@ -99,17 +94,15 @@ let optimize_for_speed () = !Clflags.optimize_for_speed
 
 let inlining_report () = !Clflags.inlining_report
 
-let inlining_report_bin () = !Flambda_backend_flags.Flambda2.Inlining.report_bin
+let inlining_report_bin () = !Oxcaml_flags.Flambda2.Inlining.report_bin
 
 let colour () = !Clflags.color
 
 let unicode () =
-  !Flambda_backend_flags.Flambda2.unicode
-  |> with_default ~f:(fun d -> d.unicode)
+  !Oxcaml_flags.Flambda2.unicode |> with_default ~f:(fun d -> d.unicode)
 
 let kind_checks () =
-  !Flambda_backend_flags.Flambda2.kind_checks
-  |> with_default ~f:(fun d -> d.kind_checks)
+  !Oxcaml_flags.Flambda2.kind_checks |> with_default ~f:(fun d -> d.kind_checks)
 
 let check_invariants () =
   match !Clflags.flambda_invariant_checks with
@@ -121,7 +114,7 @@ let check_light_invariants () =
   | No_checks -> false
   | Light_checks | Heavy_checks -> true
 
-type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
+type dump_target = Oxcaml_flags.Flambda2.Dump.target =
   | Nowhere
   | Main_dump_stream
   | File of Misc.filepath
@@ -130,34 +123,34 @@ let dump_rawflambda () = !Clflags.dump_rawflambda
 
 let dump_flambda () = !Clflags.dump_flambda
 
-let dump_rawfexpr () = !Flambda_backend_flags.Flambda2.Dump.rawfexpr
+let dump_rawfexpr () = !Oxcaml_flags.Flambda2.Dump.rawfexpr
 
-let dump_fexpr () = !Flambda_backend_flags.Flambda2.Dump.fexpr
+let dump_fexpr () = !Oxcaml_flags.Flambda2.Dump.fexpr
 
-let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
+let dump_flexpect () = !Oxcaml_flags.Flambda2.Dump.flexpect
 
-let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
+let dump_slot_offsets () = !Oxcaml_flags.Flambda2.Dump.slot_offsets
 
-let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
+let dump_flow () = !Oxcaml_flags.Flambda2.Dump.flow
 
-let dump_simplify () = !Flambda_backend_flags.Flambda2.Dump.simplify
+let dump_simplify () = !Oxcaml_flags.Flambda2.Dump.simplify
 
-let dump_reaper () = !Flambda_backend_flags.Flambda2.Dump.reaper
+let dump_reaper () = !Oxcaml_flags.Flambda2.Dump.reaper
 
-let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
+let freshen_when_printing () = !Oxcaml_flags.Flambda2.Dump.freshen
 
 module Inlining = struct
-  module I = Flambda_backend_flags.Flambda2.Inlining
+  module I = Oxcaml_flags.Flambda2.Inlining
   module IH = Clflags.Int_arg_helper
   module FH = Clflags.Float_arg_helper
 
   type round_or_default =
     | Round of int
-    | Default of Flambda_backend_flags.opt_level
+    | Default of Oxcaml_flags.opt_level
 
   let depth_scaling_factor = 10 (* See [Downwards_env.enter_inlined_apply] *)
 
-  let default_for_opt_level (opt_level : Flambda_backend_flags.opt_level) =
+  let default_for_opt_level (opt_level : Oxcaml_flags.opt_level) =
     match opt_level with
     | Oclassic -> I.oclassic_arguments
     | O2 -> I.o2_arguments
@@ -225,67 +218,67 @@ module Inlining = struct
     | Default opt_level -> (default_for_opt_level opt_level).threshold
 
   let speculative_inlining_only_if_arguments_useful () =
-    !Flambda_backend_flags.Flambda2.Inlining
+    !Oxcaml_flags.Flambda2.Inlining
      .speculative_inlining_only_if_arguments_useful
 end
 
 module Debug = struct
   let concrete_types_only_on_canonicals () =
-    !Flambda_backend_flags.Flambda2.Debug.concrete_types_only_on_canonicals
+    !Oxcaml_flags.Flambda2.Debug.concrete_types_only_on_canonicals
 
   let keep_invalid_handlers () =
-    !Flambda_backend_flags.Flambda2.Debug.keep_invalid_handlers
+    !Oxcaml_flags.Flambda2.Debug.keep_invalid_handlers
 end
 
 module Expert = struct
-  let with_default (r : 'a Flambda_backend_flags.or_default)
-      ~(f : Flambda_backend_flags.Flambda2.Expert.flags -> 'a) =
+  let with_default (r : 'a Oxcaml_flags.or_default)
+      ~(f : Oxcaml_flags.Flambda2.Expert.flags -> 'a) =
     match r with
     | Set a -> a
     | Default ->
       f
-        (Flambda_backend_flags.Flambda2.Expert.default_for_opt_level
-           !Flambda_backend_flags.opt_level)
+        (Oxcaml_flags.Flambda2.Expert.default_for_opt_level
+           !Oxcaml_flags.opt_level)
 
   let fallback_inlining_heuristic () =
-    !Flambda_backend_flags.Flambda2.Expert.fallback_inlining_heuristic
+    !Oxcaml_flags.Flambda2.Expert.fallback_inlining_heuristic
     |> with_default ~f:(fun d -> d.fallback_inlining_heuristic)
 
   let inline_effects_in_cmm () =
-    !Flambda_backend_flags.Flambda2.Expert.inline_effects_in_cmm
+    !Oxcaml_flags.Flambda2.Expert.inline_effects_in_cmm
     |> with_default ~f:(fun d -> d.inline_effects_in_cmm)
 
   (* CR mshinwell: Remove any uses of this flag, then remove the flag. *)
   let max_block_size_for_projections () =
-    !Flambda_backend_flags.Flambda2.Expert.max_block_size_for_projections
+    !Oxcaml_flags.Flambda2.Expert.max_block_size_for_projections
     |> with_default ~f:(fun d -> d.max_block_size_for_projections)
 
   let phantom_lets () =
-    !Flambda_backend_flags.Flambda2.Expert.phantom_lets
+    !Oxcaml_flags.Flambda2.Expert.phantom_lets
     |> with_default ~f:(fun d -> d.phantom_lets)
 
   let max_unboxing_depth () =
-    !Flambda_backend_flags.Flambda2.Expert.max_unboxing_depth
+    !Oxcaml_flags.Flambda2.Expert.max_unboxing_depth
     |> with_default ~f:(fun d -> d.max_unboxing_depth)
 
   let can_inline_recursive_functions () =
-    !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
+    !Oxcaml_flags.Flambda2.Expert.can_inline_recursive_functions
     |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
 
   let max_function_simplify_run () =
-    !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
+    !Oxcaml_flags.Flambda2.Expert.max_function_simplify_run
     |> with_default ~f:(fun d -> d.max_function_simplify_run)
 
   let shorten_symbol_names () =
-    !Flambda_backend_flags.Flambda2.Expert.shorten_symbol_names
+    !Oxcaml_flags.Flambda2.Expert.shorten_symbol_names
     |> with_default ~f:(fun d -> d.shorten_symbol_names)
 
   let cont_lifting_budget () =
-    !Flambda_backend_flags.Flambda2.Expert.cont_lifting_budget
+    !Oxcaml_flags.Flambda2.Expert.cont_lifting_budget
     |> with_default ~f:(fun d -> d.cont_lifting_budget)
 
   let cont_spec_budget () =
-    !Flambda_backend_flags.Flambda2.Expert.cont_spec_budget
+    !Oxcaml_flags.Flambda2.Expert.cont_spec_budget
     |> with_default ~f:(fun d -> d.cont_spec_budget)
 end
 

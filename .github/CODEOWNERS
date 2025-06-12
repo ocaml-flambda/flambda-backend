@@ -2,7 +2,7 @@
 
 .github/CODEOWNERS      @mshinwell @lpw25
 
-flambda_backend.opam    @mshinwell @lthls
+oxcaml.opam    @mshinwell @lthls
 
 build_ocaml_compiler.sexp       @poechsel
 

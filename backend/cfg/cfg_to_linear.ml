@@ -28,7 +28,7 @@
 open! Int_replace_polymorphic_compare
 module CL = Cfg_with_layout
 module L = Linear
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 let to_linear_instr ?(like : _ Cfg.instruction option) desc ~next :
     L.instruction =
@@ -101,7 +101,7 @@ let mk_float_cond ~lt ~eq ~gt ~uo =
   | true, false, false, true -> Must_be_last
 
 let cross_section cfg_with_layout src dst =
-  if !Flambda_backend_flags.basic_block_sections
+  if !Oxcaml_flags.basic_block_sections
      && not (Label.equal dst Linear_utils.labelled_insn_end.label)
   then
     let src_section = CL.get_section cfg_with_layout src in
@@ -358,7 +358,7 @@ let make_Llabel cfg_with_layout label =
   Linear.Llabel
     { label;
       section_name =
-        (if !Flambda_backend_flags.basic_block_sections
+        (if !Oxcaml_flags.basic_block_sections
         then CL.get_section cfg_with_layout label
         else None)
     }
@@ -420,7 +420,7 @@ let run cfg_with_layout =
     Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let fun_section_name =
-    if !Flambda_backend_flags.basic_block_sections
+    if !Oxcaml_flags.basic_block_sections
     then CL.get_section cfg_with_layout cfg.entry_label
     else None
   in

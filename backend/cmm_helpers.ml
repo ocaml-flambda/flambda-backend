@@ -2945,7 +2945,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
     in
     Cop (Capply (ty, pos), cargs, dbg)
   in
-  if !Flambda_backend_flags.caml_apply_inline_fast_path
+  if !Oxcaml_flags.caml_apply_inline_fast_path
   then
     (* Generate the following expression:
      *  (if (= clos.arity N)

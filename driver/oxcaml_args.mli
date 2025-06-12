@@ -19,7 +19,7 @@
     of arguments. *)
 
 (** Command line arguments required for flambda backend.  *)
-module type Flambda_backend_options = sig
+module type Oxcaml_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
@@ -172,14 +172,14 @@ end
 (** Command line arguments required for ocamlopt. *)
 module type Optcomp_options = sig
   include Main_args.Optcomp_options
-  include Flambda_backend_options
+  include Oxcaml_options
   include Debugging_options
 end
 
 (** Command line arguments required for ocamlnat. *)
 module type Opttop_options = sig
   include Main_args.Opttop_options
-  include Flambda_backend_options
+  include Oxcaml_options
   include Debugging_options
 end
 

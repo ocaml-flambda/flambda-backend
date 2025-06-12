@@ -29,7 +29,7 @@ open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 let debug = false
 
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 type layout = Label.t DLL.t
 

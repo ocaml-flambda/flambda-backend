@@ -87,7 +87,7 @@ type t =
   }
 
 let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
-  if !Flambda_backend_flags.dump_inlining_paths then
+  if !Oxcaml_flags.dump_inlining_paths then
     Format.fprintf ppf "@[<hov 1>(relative_history@ %a)@]@ "
       Inlining_history.Relative.print relative_history
 

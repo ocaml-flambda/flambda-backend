@@ -3,7 +3,7 @@
 open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 open! Regalloc_ls_utils
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 type t =
   { interval_dll : Interval.t DLL.t;

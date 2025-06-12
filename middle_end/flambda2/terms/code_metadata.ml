@@ -232,7 +232,7 @@ end
 
 let [@ocamlformat "disable"] print_inlining_paths ppf
                                 (relative_history, absolute_history) =
-  if !Flambda_backend_flags.dump_inlining_paths then
+  if !Oxcaml_flags.dump_inlining_paths then
     Format.fprintf ppf
       "@[<hov 1>(relative_history@ %a)@]@ \
        @[<hov 1>(absolute_history@ %a)@]@ "

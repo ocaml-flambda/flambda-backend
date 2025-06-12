@@ -120,7 +120,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" ~compilation_unit
     ~kind:Impl
   @@ fun info ->
-  if !Flambda_backend_flags.internal_assembler then
+  if !Oxcaml_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
   match start_from with
   | Parsing ->

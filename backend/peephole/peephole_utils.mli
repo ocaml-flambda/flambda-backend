@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-29-40-41-42"]
 
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 val are_equal_regs : Reg.t -> Reg.t -> bool
 
