@@ -47,6 +47,7 @@ and cfg_magic_number = {magic|@CFG_MAGIC_NUMBER@|magic}
 let safe_string = true
 let default_safe_string = true
 let naked_pointers = false
+let flambda_backend = true
 let oxcaml = true
 let parameterised_modules = true
 
@@ -140,7 +141,7 @@ let configuration_variables () =
   p "linear_magic_number" linear_magic_number;
 
   (* "flambda_backend" is still printed for compatibility *)
-  p_bool "flambda_backend" oxcaml;
+  p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;
 
