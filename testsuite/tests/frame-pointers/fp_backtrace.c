@@ -140,7 +140,7 @@ void fp_backtrace(value argv0)
     const regmatch_t* match = (functrimmed.rm_so != -1) ?
       &functrimmed : &funcname;
 #endif
-    // For flambda-backend just use the full symbol, this will do for now.
+    // For oxcaml just use the full symbol, this will do for now.
     const regmatch_t* match = &funcname;
 
     print_symbol(symbol, match);

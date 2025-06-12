@@ -15,7 +15,7 @@
 
 (* First test to ensure that noalloc externals that locally allocate
    don't cause a crash in the middle end (originally seen on
-   flambda-backend PR2180). *)
+   oxcaml PR2180). *)
 
 (* This will never be called, caml_alloc_dummy is just chosen as a primitive that
    exists in the bytecode runtime too *)

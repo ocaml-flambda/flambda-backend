@@ -195,7 +195,7 @@ module Default: sig
   module Opttopmain: Opttop_options
 end
 
-(** Extra_params module provides a way to read flambda-backend
+(** Extra_params module provides a way to read oxcaml
     flags from OCAMLPARAM. All command line flags should support it,
     with the exception of debug printing, such as -dcfg.
 *)
