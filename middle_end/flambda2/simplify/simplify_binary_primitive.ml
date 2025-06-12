@@ -1034,9 +1034,39 @@ let simplify_atomic_int_arith ~original_prim dacc ~original_term _dbg ~op:_
     (P.result_kind' original_prim)
     ~original_term
 
-let simplify_block_set _block_access_kind _init_or_assign ~field:_ dacc
-    ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
-  SPR.create_unit dacc ~result_var ~original_term
+let simplify_block_set (block_access_kind : P.Block_access_kind.t)
+    init_or_assign ~field dacc ~original_term dbg ~arg1 ~arg1_ty:_ ~arg2
+    ~arg2_ty ~result_var =
+  let[@inline] not_simplified () =
+    SPR.create_unit dacc ~result_var ~original_term
+  in
+  let[@inline] try_specialize_for_immediate_access_kind
+      create_immediate_access_kind =
+    let typing_env = DA.typing_env dacc in
+    match T.prove_is_a_tagged_immediate typing_env arg2_ty with
+    | Proved () ->
+      let kind = create_immediate_access_kind () in
+      SPR.create_unit ~result_var
+        ~original_term:
+          (Named.create_prim
+             (Binary
+                (Block_set { kind; init = init_or_assign; field }, arg1, arg2))
+             dbg)
+        dacc
+    | Unknown -> not_simplified ()
+  in
+  match block_access_kind with
+  | Values { field_kind = Any_value; tag; size } ->
+    try_specialize_for_immediate_access_kind (fun () ->
+        P.Block_access_kind.Values { tag; size; field_kind = Immediate })
+  | Mixed { tag; size; field_kind = Value_prefix Any_value; shape } ->
+    try_specialize_for_immediate_access_kind (fun () ->
+        P.Block_access_kind.Mixed
+          { tag; size; field_kind = Value_prefix Immediate; shape })
+  | Values { field_kind = Immediate; _ }
+  | Naked_floats _
+  | Mixed { field_kind = Flat_suffix _ | Value_prefix Immediate; _ } ->
+    not_simplified ()
 
 let simplify_poke dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_
     ~result_var =
