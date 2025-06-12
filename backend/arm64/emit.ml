@@ -1687,7 +1687,7 @@ let emit_instr i =
       DSL.ins I.FMOV [| Arm64_ast.DSL.reg_d tmp; DSL.emit_reg i.arg.(0) |];
       DSL.ins I.CNT [| tmp_v8b; tmp_v8b |];
       DSL.ins I.ADDV [| Arm64_ast.DSL.reg_b tmp; tmp_v8b |];
-      DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); Arm64_ast.DSL.reg_s tmp |]
+      DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); Arm64_ast.DSL.reg_d tmp |]
   | Lop (Intop (Ictz _)) ->
     (* [ctz Rd, Rn] is optionally supported from Armv8.7, but rbit and clz are
        supported in all ARMv8 CPUs. *)
