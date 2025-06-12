@@ -110,11 +110,7 @@ let d (x : float# array) = get x 0
 
 [%%expect{|
 external get : float# array -> int -> float = "%floatarray_safe_get"
-Line 2, characters 27-34:
-2 | let d (x : float# array) = get x 0
-                               ^^^^^^^
-Error: Floatarray primitives can't be used on arrays containing
-       unboxed types.
+val d : float# array -> float = <fun>
 |}];;
 
 
@@ -141,11 +137,7 @@ let d (x : int32# array) = get x 0
 
 [%%expect{|
 external get : int32# array -> int -> float = "%floatarray_safe_get"
-Line 2, characters 27-34:
-2 | let d (x : int32# array) = get x 0
-                               ^^^^^^^
-Error: Floatarray primitives can't be used on arrays containing
-       unboxed types.
+val d : int32# array -> float = <fun>
 |}];;
 
 external get : int64# array -> int -> float = "%floatarray_safe_get"
@@ -153,11 +145,7 @@ let d (x : int64# array) = get x 0
 
 [%%expect{|
 external get : int64# array -> int -> float = "%floatarray_safe_get"
-Line 2, characters 27-34:
-2 | let d (x : int64# array) = get x 0
-                               ^^^^^^^
-Error: Floatarray primitives can't be used on arrays containing
-       unboxed types.
+val d : int64# array -> float = <fun>
 |}];;
 
 external get : nativeint# array -> int -> float = "%floatarray_safe_get"
@@ -165,11 +153,7 @@ let d (x : nativeint# array) = get x 0
 
 [%%expect{|
 external get : nativeint# array -> int -> float = "%floatarray_safe_get"
-Line 2, characters 31-38:
-2 | let d (x : nativeint# array) = get x 0
-                                   ^^^^^^^
-Error: Floatarray primitives can't be used on arrays containing
-       unboxed types.
+val d : nativeint# array -> float = <fun>
 |}];;
 
 external get : float32# array -> int -> float = "%floatarray_safe_get"
@@ -177,11 +161,7 @@ let d (x : float32# array) = get x 0
 
 [%%expect{|
 external get : float32# array -> int -> float = "%floatarray_safe_get"
-Line 2, characters 29-36:
-2 | let d (x : float32# array) = get x 0
-                                 ^^^^^^^
-Error: Floatarray primitives can't be used on arrays containing
-       unboxed types.
+val d : float32# array -> float = <fun>
 |}];;
 
 (**************************)
