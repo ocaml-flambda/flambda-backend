@@ -81,9 +81,12 @@ end
 type binop =
   | Add
   | Sub
+  | Lsl
+  | Or
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
+  | As of Cmm.expression pattern_var * cmm_pattern
   | Const_int_fixed of int
   | Const_int of int pattern_var
   | Const_natint_fixed of Nativeint.t
@@ -98,6 +101,8 @@ let matches_binop (binop : binop) (cop : Cmm.operation) =
   match binop, cop with
   | Add, Caddi -> true
   | Sub, Csubi -> true
+  | Lsl, Clsl -> true
+  | Or, Cor -> true
   | _, _ -> false
 
 let match_clauses_in_order clauses expr =
@@ -110,6 +115,9 @@ let match_clauses_in_order clauses expr =
     | _ -> begin
     match pat, expr with
     | Any v, expr -> Some (Env.add env v expr)
+    | As (v, pat), expr ->
+        let* env = match_one_pattern env pat expr in
+        Some (Env.add env v expr)
     | Const_int_fixed n1, Cconst_int (n2, _) ->
         if Int.equal n1 n2 then Some env else None
     | Const_int v, Cconst_int (n, _) ->

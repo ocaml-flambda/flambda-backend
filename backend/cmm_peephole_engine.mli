@@ -23,9 +23,12 @@ end
 type binop =
   | Add
   | Sub
+  | Lsl
+  | Or
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
+  | As of Cmm.expression pattern_var * cmm_pattern
   | Const_int_fixed of int
   | Const_int of int pattern_var
   | Const_natint_fixed of Nativeint.t
