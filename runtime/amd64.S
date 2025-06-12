@@ -717,7 +717,7 @@ ENDFUNCTION(G(caml_raise_stack_overflow_nat))
 
 #define Make_alloc_fun(base_name, words, simd) \
 FUNCTION(G(base_name ## simd))                 \
-CFI_STARTPROC                                  \
+CFI_STARTPROC;                                 \
         ENTER_FUNCTION;                        \
         r15_sub_ ## words ;                    \
         cmpq    Caml_state(young_limit), %r15; \
