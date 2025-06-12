@@ -25,6 +25,13 @@ open P.Default_variables
 open Cmm
 open Arch
 
+let check_equal_3 name f1 f2 arg1 arg2 arg3 =
+  let r1 = f1 arg1 arg2 arg3 in
+  let r2 = f2 arg1 arg2 arg3 in
+  if r1 = r2 then r1
+  else Misc.fatal_errorf "Mismatch on %s:@ %a@ vs@ %a"
+      name Printcmm.expression r1 Printcmm.expression r2
+
 let arch_bits = Arch.size_int * 8
 
 type arity =
@@ -405,7 +412,7 @@ let rec add_const' arg const dbg =
     => (fun e -> add_const' e#.c (e#.n - e#.x) dbg);
   ]
 
-let add_const = if false then add_const else add_const'
+let add_const = check_equal_3 "add_const" add_const add_const'
 
 let incr_int c dbg = add_const c 1 dbg
 
@@ -432,7 +439,7 @@ let rec add_int' arg1 arg2 dbg =
     => (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.n2 dbg);
   ]
 
-let add_int = if false then add_int else add_int'
+let add_int = check_equal_3 "add_int" add_int add_int'
 
 let rec sub_int c1 c2 dbg =
   map_tail2 c1 c2 ~f:(fun c1 c2 ->
@@ -457,7 +464,7 @@ let rec sub_int' arg1 arg2 dbg =
     => (fun e -> add_const (sub_int' e#.c1 e#.c2 dbg) e#.n1 dbg)
   ]
 
-let sub_int = if false then sub_int else sub_int'
+let sub_int = check_equal_3 "sub_int" sub_int sub_int'
 
 let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
 
