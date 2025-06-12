@@ -131,9 +131,9 @@ This can be done from the `_runtest` directory after it has been initialised by 
 Any changes you have made to the tests in the real testsuite directory (`testsuite/`) will need to be copied
 into here first.  Then you can do things like:
 ```
-OCAMLSRCDIR=<FLAMBDA_BACKEND>/_runtest make one DIR=tests/runtime-errors
+OCAMLSRCDIR=<OXCAML>/_runtest make one DIR=tests/runtime-errors
 ```
-where `<FLAMBDA_BACKEND>` is the path to your clone.
+where `<OXCAML>` is the path to your clone.
 You may also need the `CAML_LD_LIBRARY_PATH` setting depending on what you are testing (see `Makefile.in` at the
 root).
 

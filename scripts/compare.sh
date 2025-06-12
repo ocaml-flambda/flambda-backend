@@ -11,7 +11,7 @@ if [ "$(uname)" != "Linux" ]; then
 fi
 
 if [ $# != 3 ]; then
-  echo "syntax: $0 UPSTREAM-INSTALL-DIR FLAMBDA-BACKEND-INSTALL-DIR OCAMLOBJINFO"
+  echo "syntax: $0 UPSTREAM-INSTALL-DIR OXCAML-INSTALL-DIR OCAMLOBJINFO"
   exit 1
 fi
 
@@ -1157,4 +1157,3 @@ $difftool \
       | grep -v "^WITH_OCAMLTEST=" \
       | grep -v "^STDLIB_MANPAGES=" \
       | grep -v "^prefix=") \
-
