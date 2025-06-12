@@ -3312,11 +3312,12 @@ let walk_locks_for_mutable_mode ~errors ~loc ~env  locks mode =
           let mode = mode |> Mode.value_to_alloc_r2g |> Mode.alloc_as_value in
           Mode.Value.meet
             [mode;
-             Mode.Value.max_with (Comonadic Areality) (Mode.Regionality.regional)]
+             Mode.Value.max_with (Comonadic Areality)
+                                 (Mode.Regionality.regional)]
       | Exclave_lock ->
           (* If [m0] is [global], then inside the exclave we require new values
-          to be [global]. If [m0] is [regional], then we require the new values to
-          be [local]. If [m0] is [local], that would trigger type error
+          to be [global]. If [m0] is [regional], then we require the new values
+          to be [local]. If [m0] is [local], that would trigger type error
           elsewhere, so what we return here doesn't matter. *)
           mode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
       | Escape_lock (Letop | Probe | Class | Module as ctx) ->
