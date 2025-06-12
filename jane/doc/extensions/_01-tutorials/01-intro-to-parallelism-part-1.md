@@ -231,7 +231,9 @@ integers (we promise the other examples are more substantial) would be this:
 ```ocaml
 let add4 (par : Parallel.t) a b c d =
   let a_plus_b, c_plus_d =
-    Parallel.fork_join2 par (fun _par -> a + b) (fun _par -> c + d)
+    Parallel.fork_join2 par
+      (fun _par -> a + b)
+      (fun _par -> c + d)
   in
   a_plus_b + c_plus_d
 ```
@@ -306,7 +308,8 @@ let average (tree : float Tree.t) =
     | Tree.Node (l, r) ->
       let ~total:total_l, ~count:count_l = total l in
       let ~total:total_r, ~count:count_r = total r in
-      ~total:(total_l +. total_r), ~count:(count_l + count_r)
+      ( ~total:(total_l +. total_r),
+        ~count:(count_l + count_r) )
   in
   let ~total, ~count = total tree in
   total /. (count |> Float.of_int)
@@ -324,13 +327,14 @@ let average_par (par : Parallel.t) tree =
     match tree with
     | Tree.Leaf x -> ~total:x, ~count:1
     | Tree.Node (l, r) ->
-      let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
-        Parallel.fork_join2
-          par
+      let ( (~total:total_l, ~count:count_l),
+            (~total:total_r, ~count:count_r) ) =
+        Parallel.fork_join2 par
           (fun par -> total par l)
           (fun par -> total par r)
       in
-      ~total:(total_l +. total_r), ~count:(count_l + count_r)
+      ( ~total:(total_l +. total_r),
+        ~count:(count_l + count_r) )
   in
   let ~total, ~count = total par tree in
   total /. (count |> Float.of_int)
@@ -376,7 +380,8 @@ All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
 -   | Tree.Leaf x -> ~total:x, ~count:1
 +   | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
     | Tree.Node (l, r) ->
-      let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+      let ( (~total:total_l, ~count:count_l),
+          (~total:total_r, ~count:count_r) )=
 ```
 
 And of course you'll need a new test tree:
@@ -412,8 +417,8 @@ val cheer_up : t -> unit
 But now we get an error from the compiler:
 
 ```
-The value total is nonportable, so cannot be used inside a function that is
-portable.
+The value total is nonportable, so cannot be used inside a
+function that is portable.
 ```
 
 We'll get into exactly what `portable` and `nonportable` are soon enough. For
@@ -428,7 +433,7 @@ we moved some code? We can get closer to the answer by insisting that `total` is
 `portable`:
 
 ```diff
- let average_par (par : Parallel.t) (tree : Thing.t Tree.t) =
+ let average_par (par : Parallel.t) tree =
 -  let rec total par tree =
 +  let rec (total @ portable) par tree =
      match tree with
@@ -517,7 +522,8 @@ If you modify our test code to run `average_par` on the new `test_tree`, you'll
 find yourself needing to make one more change to `thing.mli`:
 
 ```ocaml
-val create : price:float -> mood:Mood.t -> t @ portable @@ portable
+val create : price:float -> mood:Mood.t -> t @ portable
+  @@ portable
 ```
 
 This says somewhat tediously that `create` both _returns_ something `portable`
@@ -581,12 +587,15 @@ type t = {
 We can force an argument to have a particular mode using the `@` syntax.
 
 ```ocaml
-let price (t @ contended) = t.price (* ok: [price] is immutable *)
-let cheer_up (t @ contended) = t.mood <- Happy (* error! *)
+let price (t @ contended) =
+  t.price (* ok: [price] is immutable *)
+let cheer_up (t @ contended) =
+  t.mood <- Happy (* error! *)
 ```
 
 ```
-Error: This value is contended but expected to be uncontended.
+Error: This value is contended but expected to be
+uncontended.
 ```
 
 This is of course [rule 2](#rule-contended-mutable). To see why this has to be
@@ -594,14 +603,16 @@ an error, consider that since `t` is `contended`, there may be another domain
 trying to mutate it in parallel:
 
 ```ocaml
-let bum_out t = t.mood <- Sad (* cue ominous music: a data race lurks! *)
+let bum_out t =
+  t.mood <- Sad (* cue ominous music: a data race lurks! *)
 ```
 
 So we can't allow the access in `cheer_up` unless we flag the argument as
 `uncontended`:
 
 ```ocaml
-let cheer_up (t @ uncontended) = t.mood <- Happy (* ok: [t] is [uncontended] *)
+let cheer_up (t @ uncontended) =
+  t.mood <- Happy (* ok: [t] is [uncontended] *)
 ```
 
 Note that you can also let the compiler infer that `t` is `uncontended` (as we
@@ -618,7 +629,8 @@ let mood (t @ contended) = t.mood (* error! *)
 ```
 
 ```
-Error: This value is contended but expected to be shared or uncontended.
+Error: This value is contended but expected to be shared or
+uncontended.
 ```
 
 This is dangerous for the same reason `cheer_up` was: someone else could be
@@ -649,7 +661,9 @@ if they could be called in parallel:
 let beat_the_system par =
   let t = { price = 42.0; mood = Neutral } in
   let (), () =
-    Parallel.fork_join2 par (fun _par -> cheer_up t) (fun _par -> bum_out t)
+    Parallel.fork_join2 par
+      (fun _par -> cheer_up t)
+      (fun _par -> bum_out t)
   in
   ()
 ```
@@ -657,7 +671,8 @@ let beat_the_system par =
 Fortunately:
 
 ```
-Error: This value is contended but expected to be uncontended.
+Error: This value is contended but expected to be
+uncontended.
 ```
 
 When we cover the `portable` mode [next], we'll be able to explain precisely
@@ -714,7 +729,9 @@ type t_in_a_trenchcoat = {
 }
 
 let cheer_up_sneakily (t_in_a_trenchcoat @ contended) =
-  let t @ uncontended = t_in_a_trenchcoat.inner_t (* error: rule 4 *) in
+  let t @ uncontended =
+    t_in_a_trenchcoat.inner_t (* error: rule 4 *)
+  in
   cheer_up t (* cue the ominous music again *)
 ```
 
@@ -959,7 +976,8 @@ module Mood : sig
     | Sad
 end
 
-val create : price:float -> mood:Mood.t -> t @ portable @@ portable
+val create : price:float -> mood:Mood.t -> t @ portable
+  @@ portable
 val price : t @ contended -> float @@ portable
 val mood : t -> Mood.t @@ portable
 val cheer_up : t -> unit @@ portable
@@ -986,7 +1004,8 @@ val price : t @ contended -> float
 val mood : t -> Mood.t
 val cheer_up : t -> unit
 val bum_out : t -> unit
-val do_something_involving_shared_state : unit -> unit @@ nonportable
+val do_something_involving_shared_state : unit -> unit
+  @@ nonportable
 ```
 
 ## Mode crossing
@@ -1035,10 +1054,12 @@ irrelevant for that type: a `nonportable` value can be used as though it were
 `portable`. The same goes for contention with `contended` and `uncontended`.
 
 ```ocaml
-let always_portable (a : int_or_string @ nonportable)
-  : int_or_string @ portable
+let always_portable (a : float_and_int @ nonportable)
+  : float_and_int @ portable
   =
-  let a' @ portable = a in (* ok because [int_or_string] crosses portability *)
+  let a' @ portable =
+    a (* ok because [float_and_int] crosses portability *)
+  in
   a'
 ```
 
@@ -1085,13 +1106,24 @@ Any type variable can be given a kind, so we can write a version of
 `always_portable` that works for _any_ `mutable_data` type:
 
 ```ocaml
-let always_portable' : ('a : mutable_data) @ nonportable -> 'a @ portable =
- fun a ->
-  let a' @ portable = a in
+let always_portable' (a : ('a : mutable_data) @ nonportable)
+  : 'a @ portable
+  =
+  let a' @ portable =
+    a (* ok because ['a] crosses portability *)
+  in
   a'
 ```
 
-The type of `always_portable'` can be read “Given any type `'a` of kind
+The type of `always_portable'` is:
+
+```ocaml
+val always_portable'
+   : ('a : mutable_data) @ nonportable
+  -> 'a @ portable
+```
+
+We can read this as “Given any type `'a` of kind
 `mutable_data`, this function takes a `nonportable` `'a` and returns a
 `portable` `'a`.”
 
@@ -1117,7 +1149,8 @@ module Thing = struct
     ; mood : Mood.t Atomic.t
     }
 
-  let create ~price ~mood = { price; mood = Atomic.make mood }
+  let create ~price ~mood =
+    { price; mood = Atomic.make mood }
   let price { price; _ } = price
   let mood { mood; _ } = Atomic.get mood
   let cheer_up { mood; _ } = Atomic.set mood Happy
@@ -1150,11 +1183,14 @@ let average_par_running (par : Parallel.t) tree =
   let rec go par tree =
     match tree with
     | Tree.Leaf x ->
-      Atomic.update total ~pure_f:(fun total -> total +. Thing.price x);
+      Atomic.update total
+        ~pure_f:(fun total -> total +. Thing.price x);
       Atomic.incr count
     | Tree.Node (l, r) ->
       let (), () =
-        Parallel.fork_join2 par (fun par -> go par l) (fun par -> go par r)
+        Parallel.fork_join2 par
+          (fun par -> go par l)
+          (fun par -> go par r)
       in
       ()
   in
@@ -1271,8 +1307,10 @@ let average tree =
       Iarray.fold
         totals_and_counts
         ~init:(~total:0.0, ~count:0)
-        ~f:(fun (~total:total_acc, ~count:count_acc) (~total, ~count) ->
-          ~total:(total +. total_acc), ~count:(count + count_acc))
+        ~f:(fun (~total:total_acc, ~count:count_acc)
+                (~total, ~count) ->
+              ( ~total:(total +. total_acc),
+                ~count:(count + count_acc) ))
   in
   let ~total, ~count = total tree in
   total /. (count |> Float.of_int)
@@ -1291,13 +1329,14 @@ let average_par (par : Parallel.t) tree =
     | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
     | Tree.Node arr ->
       let seq = Parallel.Sequence.of_iarray arr in
-      Parallel.Sequence.fold'
-        par
+      Parallel.Sequence.fold' par
         seq
         ~f:(fun par subtree -> total par subtree)
         ~init:(~total:0.0, ~count:0)
-        ~combine:(fun _par (~total, ~count) (~total:total2, ~count:count2) ->
-          ~total:(total +. total2), ~count:(count + count2))
+        ~combine:(fun _par (~total, ~count)
+                           (~total:total2, ~count:count2) ->
+                    ( ~total:(total +. total2),
+                      ~count:(count + count2) ))
       [@nontail]
   in
   let ~total, ~count = total par tree in
