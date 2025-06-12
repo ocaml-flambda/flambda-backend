@@ -1,6 +1,26 @@
-# Simple Parallelism Without Data Races
+---
+layout: documentation-page
+collectionName: Tutorials
+title: Introduction to parallelism, Part 1
+---
 
-# Introduction
+<!-- FIXME: These should be covered by the stylesheet -->
+<style>
+  blockquote {
+    margin-bottom: 1rem;
+    padding: 0rem 2rem;
+  }
+
+  table {
+    margin-bottom: 1rem;
+  }
+
+  td {
+    padding: 0.2rem;
+  }
+</style>
+
+# Simple Parallelism Without Data Races
 
 OCaml 5 unleashed parallel programming on the OCaml ecosystem. As is often the
 case when something is unleashed, this has quite a bit of potential to cause
@@ -162,10 +182,10 @@ When there is a data race, the OCaml memory model throws up its hands and says
 “sorry, no sequential consistency.”[^bounded-in-space-and-time]
 
 [^bounded-in-space-and-time]: If you come from a C/C++ or Java background, you
-may be interested to know that data races are still _considerably_ less
-catastrophic in OCaml than in other languages, where the repercussions are
-“unbounded in space and time,” which is as scary as it sounds. For details, see
-[this paper][bounding data races].
+    may be interested to know that data races are still _considerably_ less
+    catastrophic in OCaml than in other languages, where the repercussions are
+    “unbounded in space and time,” which is as scary as it sounds. For details,
+    see [this paper][bounding data races].
 
 [bounding data races]: https://kcsrk.info/papers/pldi18-memory.pdf
 
@@ -179,7 +199,7 @@ B to observe a state where `initialised` is `true` and `price_of_gold` is
 `0.0`.[^price-zero]
 
 [^price-zero]: Assuming, of course, `calculate_price_of_gold ()` doesn't
-return `0.0`. The compiler can't catch everything.
+    return `0.0`. The compiler can't catch everything.
 
 The even _better_ news is that, in code using OxCaml's extensions, the data
 races in `price_of_gold` and `initialised` would _never have compiled to begin
@@ -188,7 +208,7 @@ to understand the type system, the system for data-race freedom has a learning
 curve. This tutorial aims to get you moving with an approach that, if it fits
 your use case, aims to achieve real speedups without much fuss. You'll still
 need to convince the compiler that your code has no data races, but we'll walk
-through the rules and even some [shortcuts](#amenities) for common special
+through the rules and even some [shortcuts](#niceties) for common special
 cases.
 
 # Fork/join parallelism
@@ -291,7 +311,7 @@ Now for something more substantial. Suppose we're working with binary trees, and
 we want to take an average over all the values in the tree. Here's a basic
 implementation (note that we've made use of the new [labeled tuples] feature):
 
-[labeled tuples]: ../../_11-miscellaneous-extensions/labeled-tuples
+[labeled tuples]: ../../miscellaneous-extensions/labeled-tuples
 
 <a id="code-average"></a>
 ```ocaml
@@ -545,7 +565,7 @@ something about a name in an OCaml program. But whereas a type describes the
 what can be done with it. If you've worked with [stack allocation], you've
 already encountered the `local` mode.
 
-[stack allocation]: ../../_02-stack-allocation/intro
+[stack allocation]: ../../stack-allocation/intro
 
 The `portable` mode is the one you'll see most often, but it will be easier to
 understand once we've covered `contended` and `uncontended`, so we begin there.
@@ -554,7 +574,7 @@ understand once we've covered `contended` and `uncontended`, so we begin there.
 
 We said [before](#what-is-a-data-race) that a data race needs four things.
 
-1. Code running in parallel, which is to say in two different _domains_
+1. Code running in parallel, which is to say in two different domains
 2. A memory location that may be accessed by both domains simultaneously
 3. At least one of the accesses is a write
 4. The location isn't atomic
@@ -563,8 +583,9 @@ The `contended` mode and its opposite, `uncontended`, prevent data races by
 ensuring that this is impossible. They institute two key rules:
 
 > <a id="rule-contended-parallel"></a>
-> **Rule 1.** If two domains may access the same value, at most one of them may
-> consider the value `uncontended`. The others must consider it `contended`.
+> **Rule 1.** If two or more domains may access the same value, at most one of
+> them may consider the value `uncontended`. The others must consider it
+> `contended`.
 
 > <a id="rule-contended-mutable"></a>
 > **Rule 2.** Reading or modifying a `mutable` field is not allowed if the
@@ -637,9 +658,9 @@ This is dangerous for the same reason `cheer_up` was: someone else could be
 running `bum_out` in parallel, producing a data race.[^shared]
 
 [^shared]: You may have noticed the `shared` in the error message here. The
-`shared` mode lies in between `contended` and `uncontended` in that it allows
-reading but not writing mutable fields. It's less common than the others but it
-comes in handy for things like read/write locks.
+    `shared` mode lies in between `contended` and `uncontended` in that it
+    allows reading but not writing mutable fields. It's less common than the
+    others but it comes in handy for things like read/write locks.
 
 Adding `uncontended` signals to the compiler that a data race is possible: if
 `cheer_up` and `bum_out` can be called with the same argument in parallel, we
@@ -703,9 +724,9 @@ required to. On the other hand, `uncontended` is a constraint that _must_ be
 met.[^local-means-allowed]
 
 [^local-means-allowed]: If you've worked with `local` and `global`, you may know
-they have a similar relationship: if a function takes a `local` argument, you're
-_allowed_ to pass something `local` but not required, whereas `global` is a hard
-requirement.
+    they have a similar relationship: if a function takes a `local` argument,
+    you're _allowed_ to pass something `local` but not required, whereas
+    `global` is a hard requirement.
 
 Finally, recall that our running example wants to fork/join over an entire tree
 of `Thing.t`s, so we should consider what happens when the `Thing.t` is in a
@@ -776,9 +797,9 @@ As we said before, [rule 1](#rule-contended-parallel) and [rule
 can enforce them, that is. The compiler's type checker can just raise an error
 when rule 2 is violated, but rule 1 is a bit squishier. To reiterate:
 
-> **Rule 1 of `contended`.** If multiple accesses of the same value may occur
-> in parallel, at most one of them may consider the value `uncontended`. The
-> others must consider it `contended`.
+> **Rule 1 of `contended`.** If two or more domains may access the same value,
+> at most one of them may consider the value `uncontended`. The others must
+> consider it `contended`.
 
 We've seen that `Parallel.fork_join2` provides parallelism while enforcing this
 rule. How does it manage that? Let's look again at our attempt to sneak a data
@@ -805,7 +826,7 @@ parallel with line C), and it's still assuming `t` is `uncontended` (as is line
 C).
 
 [^or-same-domain]: We say “might” because `Parallel.fork_join2` may choose not
-to run the tasks in parallel. The compiler, as usual, has to be pessimistic.
+    to run the tasks in parallel. The compiler, as usual, has to be pessimistic.
 
 In summary, the arguments to `fork_join2`
 
@@ -901,12 +922,12 @@ encouraged to try it as an exercise: if `loop'` tries to call itself via
 `Parallel.fork_join2`, what error does the compiler raise and why?[^answer-loop]
 
 [^answer-loop]: Answer to the exercise: If you put `loop' a (i - 1)` into a call
-to `Parallel.fork_join2`, the compiler complains that `a` is `contended` but
-expected to be `uncontended`. Crucially, even though `loop'` is `portable`, _the
-argument to `fork_join2`_ is what ultimately needs to be `portable`, and so _it_
-still can't access `a` at `uncontended`. Of course, it could instead create a
-fresh reference and pass that into `loop'`, but then it would genuinely not be
-a data race (admittedly it would also not be useful).
+    to `Parallel.fork_join2`, the compiler complains that `a` is `contended` but
+    expected to be `uncontended`. Crucially, even though `loop'` is `portable`,
+    _the argument to `fork_join2`_ is what ultimately needs to be `portable`,
+    and so _it_ still can't access `a` at `uncontended`. Of course, it could
+    instead create a fresh reference and pass that into `loop'`, but then it
+    would genuinely not be a data race (admittedly it would also not be useful).
 
 Just as it's safe to forget a value's privileged `uncontended` status and
 downgrade it to `contended`, there's no danger in treating something `portable`
@@ -934,7 +955,7 @@ in it, it can ignore portability requirements altogether for values of `t`.
 We'll cover the specifics when we get to [mode crossing].
 
 [^other-code-types]: Note that some other types are secretly function types,
-notably `Lazy.t`, so `portable` is also a concern for them.
+    notably `Lazy.t`, so `portable` is also a concern for them.
 
 [in a trenchcoat]: #code-cheer_up_sneakily
 [mode crossing]: #mode-crossing
@@ -1205,9 +1226,9 @@ rule 1 of `portable` for your answer—those only tell us that we _must be
 stopped,_ not what actually stops us.[^answer-go-ref])
 
 [^answer-go-ref]: Answer to the exercise: Rule 2 of `portable` says that `go`
-can only access `total` and `count` at mode `contended`, and rule 2 of
-`contended` then says that `go` can't read or write the value at either (since
-that value is stored as a `mutable` field of a record).
+    can only access `total` and `count` at mode `contended`, and rule 2 of
+    `contended` then says that `go` can't read or write the value at either
+    (since that value is stored as a `mutable` field of a record).
 
 Now for the caveats: Firstly, there are performance penalties, since an
 `Atomic.t` is a pointer and atomic operations are more expensive. Secondly,
@@ -1226,7 +1247,7 @@ something more sophisticated like a lock over the whole tree, which grants a
 function `uncontended` access while the lock is held (which is safe because of
 course only one domain can hold the lock). See the [capsule API] for details.
 
-[capsule API]: ../_04-parallelism/02-capsules
+[capsule API]: ../parallelism/02-capsules
 
 The good news is that data-race freedom guarantees that even buggy programs can
 be reasoned about intuitively. See [Why are data races bad?].
