@@ -7,7 +7,7 @@
 (cram enable)
 
 (package
-  (name flambda_backend)
+  (name oxcaml)
 )
 
 (package
