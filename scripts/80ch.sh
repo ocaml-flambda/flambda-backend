@@ -16,14 +16,16 @@
 
 # 80ch.sh: A GitHub-actions-friendly script which finds lines added in the
 #          current feature which are longer than 80 characters. To be less
-#          annoying, 80ch.sh never fails, but instead emits warnings, and only
-#          checks a subset of all files (See SKIP FILES).
+#          annoying, only checks a subset of all files (See SKIP FILES).
 
 set -u
 
-feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
-                      # so our feature base is just the first parent (HEAD^1)
-                      # of this merge commit
+if [[ -n "$GIT_FEATURE_BASE_COMMAND" ]]
+then
+  feature_base="$($GIT_FEATURE_BASE_COMMAND)"
+else
+  feature_base="main"
+fi
 
 find_diff() {
 # Iterate through all files changed since this branch forked off of main.
@@ -88,18 +90,24 @@ do
     line="${long_line#*:}"    # These parameter expansions split
     number="${long_line%%:*}" # on the first colon
 
-    # Warning workflow command for GitHub Actions
-    # Github action erases all but the last part of the message in its logs
-    # (even raw logs), so we repeat the file and line number
-    printf '::error file=%s,line=%s,title=%s::Line %s is too long in %s\n' \
-      "$changed_file" "$number" \
-      'Line is longer than 80 characters' \
-      "$number" \
-      "$changed_file"
+    if [[ "$CH80_FORMAT" == fix ]]
+    then
+      # Used for fix-80ch.sh
+      printf '%s:%s:1: %s\n' "$changed_file" "$number" "$line"
+    else
+      # Workflow command for GitHub Actions:
+      # Github action erases all but the last part of the message in its logs
+      # (even raw logs), so we repeat the file and line number
+      printf '::error file=%s,line=%s,title=%s::Line %s is too long in %s\n' \
+        "$changed_file" "$number" \
+        'Line is longer than 80 characters' \
+        "$number" \
+        "$changed_file"
+    fi
   done
 done
 }
 
 output="$(find_diff)"
-printf '%s\n' "$output"
+printf '%s' "$output"
 [[ -z "$output" ]] # if there is output, exit 1

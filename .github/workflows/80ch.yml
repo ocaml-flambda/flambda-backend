@@ -36,4 +36,4 @@ jobs:
       run: opam pin -y ocamlformat 0.24.1
 
     - name: Check for new >80 character lines
-      run: opam exec -- bash .github/workflows/80ch.sh
+      run: opam exec -- GIT_FEATURE_BASE_COMMAND='printf HEAD^1' bash ./scripts/80ch.sh

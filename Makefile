@@ -112,6 +112,15 @@ check-fmt:
 	  exit 1; \
 	fi
 
+.PHONY: 80ch
+80ch:
+	@./scripts/80ch.sh
+
+.PHONY: fix-80ch
+fix-80ch:
+	@./scripts/fix-80ch.sh
+
+
 .PHONY: regen-flambda2-parser
 regen-flambda2-parser: $(dune_config_targets)
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @middle_end/flambda2/parser/regen --auto-promote || true
