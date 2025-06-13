@@ -28,7 +28,10 @@ struct
   type 's stack =
     | Stack_nil : nil stack
     | Stack_cons :
-        'a Iterator.t * 'a option ref * ('a -> 's) continuation * 's stack
+        'a Iterator.t
+        * 'a option Channel.sender
+        * ('a -> 's) continuation
+        * 's stack
         -> ('a -> 's) stack
 
   and 's continuation = 's stack -> unit
@@ -38,11 +41,15 @@ struct
     | Up : ('x, 's) instruction -> ('x, 'a -> 's) instruction
     | Dispatch : ('a, 'b -> 's) instruction
     | Seek :
-        'b option ref * 'b Iterator.t * ('a, 's) instruction * string * string
+        'b option Channel.receiver
+        * 'b Iterator.t
+        * ('a, 's) instruction
+        * string
+        * string
         -> ('a, 's) instruction
     | Open :
         'b Iterator.t
-        * 'b option ref
+        * 'b option Channel.sender
         * ('a, 'b -> 's) instruction
         * ('a, 'b -> 's) instruction
         * string
@@ -51,7 +58,7 @@ struct
     | Action : 'a * ('a, 's) instruction -> ('a, 's) instruction
     | Call :
         ('b Constant.hlist -> unit)
-        * 'b Option_ref.hlist
+        * 'b Option_receiver.hlist
         * ('a, 's) instruction
         * string
         * string list
@@ -121,7 +128,7 @@ struct
     match Iterator.current iterator with
     | Some current_key ->
       Iterator.accept iterator;
-      cell.contents <- Some current_key;
+      Channel.send cell (Some current_key);
       level stack
     | None -> advance next_stack
 
@@ -147,7 +154,7 @@ struct
         Iterator.init iterator;
         execute k (Stack_cons (iterator, cell, execute for_each, stack))
       | Seek (key_ref, iterator, k, _key_ref_name, _iterator_name) -> (
-        let key = Option.get !key_ref in
+        let key = Option.get (Channel.recv key_ref) in
         Iterator.init iterator;
         Iterator.seek iterator key;
         match Iterator.current iterator with
@@ -161,7 +168,7 @@ struct
         | Accept -> execute k stack
         | Skip -> advance stack)
       | Call (f, rs, k, _name, _names) ->
-        f (Option_ref.get rs);
+        f (Option_receiver.recv rs);
         execute k stack
     in
     execute instruction
@@ -186,11 +193,17 @@ struct
 
   let call f ~name y k = Call (f, y.values, k, name, y.names)
 
-  let rec refs : type s. s Iterator.hlist -> s Option_ref.hlist = function
-    | [] -> []
-    | _ :: iterators -> ref None :: refs iterators
+  let rec channels :
+      type s.
+      s Iterator.hlist -> s Option_sender.hlist * s Option_receiver.hlist =
+    function
+    | [] -> [], []
+    | _ :: iterators ->
+      let send, recv = Channel.create None in
+      let senders, receivers = channels iterators in
+      send :: senders, recv :: receivers
 
-  type erev = Erev : 's Iterator.hlist * 's Option_ref.hlist -> erev
+  type erev = Erev : 's Iterator.hlist * 's Option_sender.hlist -> erev
 
   let iterate :
       type a.
@@ -201,7 +214,7 @@ struct
     let iterator_names = iterators.names in
     let iterators = iterators.values in
     let rec rev0 :
-        type s. s Iterator.hlist -> s Option_ref.hlist -> erev -> erev =
+        type s. s Iterator.hlist -> s Option_sender.hlist -> erev -> erev =
      fun iterators refs acc ->
       match iterators, refs with
       | [], [] -> acc
@@ -209,12 +222,14 @@ struct
         let (Erev (rev_iterators, rev_refs)) = acc in
         rev0 iterators refs (Erev (iterator :: rev_iterators, r :: rev_refs))
     in
-    let rs = refs iterators in
-    let (Erev (rev_iterators, rev_refs)) = rev0 iterators rs (Erev ([], [])) in
+    let senders, receivers = channels iterators in
+    let (Erev (rev_iterators, rev_refs)) =
+      rev0 iterators senders (Erev ([], []))
+    in
     let rec loop :
         type s a.
         (a -> s) Iterator.hlist ->
-        (a -> s) Option_ref.hlist ->
+        (a -> s) Option_sender.hlist ->
         (_, a -> s) instruction ->
         string list ->
         (_, nil) instruction =
@@ -236,7 +251,9 @@ struct
     | _ :: _ ->
       loop rev_iterators rev_refs
         (call f ~name:"yield"
-           { values = rs; names = List.map (fun _ -> "_") iterator_names }
+           { values = receivers;
+             names = List.map (fun _ -> "_") iterator_names
+           }
            advance)
         (List.rev iterator_names)
 

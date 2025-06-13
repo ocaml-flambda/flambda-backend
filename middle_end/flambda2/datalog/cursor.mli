@@ -22,16 +22,22 @@ val int_repr : int value_repr
 type action
 
 val bind_iterator :
-  'a option ref with_name -> 'a Trie.Iterator.t with_name -> action
+  'a option Channel.receiver with_name -> 'a Trie.Iterator.t with_name -> action
 
 val unless :
-  ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.hlist with_names -> action
+  ('t, 'k, 'v) Table.Id.t ->
+  't Channel.receiver ->
+  'k Option_receiver.hlist with_names ->
+  action
 
 val unless_eq :
-  'k value_repr -> 'k option ref with_name -> 'k option ref with_name -> action
+  'k value_repr ->
+  'k option Channel.receiver with_name ->
+  'k option Channel.receiver with_name ->
+  action
 
 val filter :
-  ('k Constant.hlist -> bool) -> 'k Option_ref.hlist with_names -> action
+  ('k Constant.hlist -> bool) -> 'k Option_receiver.hlist with_names -> action
 
 type actions
 
@@ -55,7 +61,7 @@ module Level : sig
       {b Note}: This reference is set to any new value found prior to executing
       the associated actions, if any, and can thus be used in actions for this
       level or levels of later orders. *)
-  val use_output : 'a t -> 'a option ref with_name
+  val use_output : 'a t -> 'a option Channel.receiver with_name
 
   (** Actions to execute immediately after a value is found at this level. *)
   val actions : 'a t -> actions
@@ -77,7 +83,7 @@ val add_new_level : context -> string -> 'a Level.t
 val add_iterator :
   context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist with_names
 
-val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't ref
+val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't Channel.receiver
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)
@@ -94,11 +100,14 @@ type call
 val create_call :
   ('a Constant.hlist -> unit) ->
   name:string ->
-  'a Option_ref.hlist with_names ->
+  'a Option_receiver.hlist with_names ->
   call
 
 val create :
-  ?calls:call list -> ?output:'v Option_ref.hlist with_names -> context -> 'v t
+  ?calls:call list ->
+  ?output:'v Option_receiver.hlist with_names ->
+  context ->
+  'v t
 
 val naive_fold :
   'v t -> Table.Map.t -> ('v Constant.hlist -> 'a -> 'a) -> 'a -> 'a
@@ -154,9 +163,9 @@ module With_parameters : sig
   val without_parameters : (nil, 'v) t -> 'v cursor
 
   val create :
-    parameters:'p Option_ref.hlist ->
+    parameters:'p Option_sender.hlist ->
     ?calls:call list ->
-    ?output:'v Option_ref.hlist with_names ->
+    ?output:'v Option_receiver.hlist with_names ->
     context ->
     ('p, 'v) t
 

@@ -20,6 +20,8 @@
   (1) https://arxiv.org/pdf/1210.0481
 *)
 
+(** {2 Iterators} *)
+
 module type Iterator = sig
   (** This module is really an interface for the trie iterators from "Leapfrog
       Triejoin: A Simple, Worst-Case Optimal Join Algorithm" by Todd L.
@@ -107,7 +109,7 @@ module Map (T : Container_types.S_plus_iterator) : sig
 
        - Calling [accept] will set the [handler] reference to the current value
          of the iterator. *)
-  val create : 'a T.Map.t ref -> 'a ref -> T.t t
+  val create : 'a T.Map.t Channel.receiver -> 'a Channel.sender -> T.t t
 end
 
 module Join (Iterator : Iterator) : sig

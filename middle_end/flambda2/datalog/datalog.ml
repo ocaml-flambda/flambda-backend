@@ -18,18 +18,21 @@ open Datalog_imports
 module Parameter = struct
   type 'a t =
     { name : string;
-      cell : 'a option ref
+      sender : 'a option Channel.sender;
+      receiver : 'a option Channel.receiver
     }
 
-  let create name = { name; cell = ref None }
+  let create name =
+    let sender, receiver = Channel.create None in
+    { name; sender; receiver }
 
   include Heterogenous_list.Make (struct
     type nonrec 'a t = 'a t
   end)
 
-  let rec to_refs : type a. a hlist -> a Option_ref.hlist = function
+  let rec to_senders : type a. a hlist -> a Option_sender.hlist = function
     | [] -> []
-    | p :: ps -> p.cell :: to_refs ps
+    | p :: ps -> p.sender :: to_senders ps
 end
 
 module Term = struct
@@ -108,14 +111,15 @@ let rec bind_atom :
     let this_iterator = { value = this_iterator; name = this_iterator_name } in
     match this_arg with
     | Constant cte ->
+      let _send, recv = Channel.create (Some cte) in
       bind_iterator post_level
-        { value = ref (Some cte); name = "<constant>" }
+        { value = recv; name = "<constant>" }
         this_iterator;
       bind_atom ~order post_level other_args other_iterators
         other_iterators_names
     | Parameter param ->
       bind_iterator post_level
-        { value = param.cell; name = param.name }
+        { value = param.receiver; name = param.name }
         this_iterator;
       bind_atom ~order post_level other_args other_iterators
         other_iterators_names
@@ -156,12 +160,15 @@ let rec find_last_binding0 : type a. order:_ -> _ -> a Term.hlist -> _ =
 let find_last_binding post_level args =
   find_last_binding0 ~order:Cursor.Order.parameters post_level args
 
-let compile_term : 'a Term.t -> 'a option ref with_name = function
-  | Constant cte -> { value = ref (Some cte); name = "<constant>" }
-  | Parameter param -> { value = param.cell; name = param.name }
+let compile_term : 'a Term.t -> 'a option Channel.receiver with_name = function
+  | Constant cte ->
+    let _send, recv = Channel.create (Some cte) in
+    { value = recv; name = "<constant>" }
+  | Parameter param -> { value = param.receiver; name = param.name }
   | Variable var -> Cursor.Level.use_output var
 
-let rec compile_terms : type a. a Term.hlist -> a Option_ref.hlist with_names =
+let rec compile_terms :
+    type a. a Term.hlist -> a Option_receiver.hlist with_names =
  fun vars ->
   match vars with
   | [] -> { values = []; names = [] }
@@ -209,7 +216,7 @@ let create_callback func ~name args = Callback { func; name; args }
 let yield output (info : _ context) =
   let output = compile_terms output in
   Cursor.With_parameters.create
-    ~parameters:(Parameter.to_refs info.parameters)
+    ~parameters:(Parameter.to_senders info.parameters)
     info.context ~output
 
 let execute callbacks (info : _ context) =
@@ -220,5 +227,5 @@ let execute callbacks (info : _ context) =
       callbacks
   in
   Cursor.With_parameters.create ~calls
-    ~parameters:(Parameter.to_refs info.parameters)
+    ~parameters:(Parameter.to_senders info.parameters)
     info.context

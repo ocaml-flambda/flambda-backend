@@ -25,20 +25,26 @@ type 'a with_names =
 
 include Heterogenous_list
 
-module Option_ref = struct
+module Option_sender = struct
   include Make (struct
-    type 'a t = 'a option ref
+    type 'a t = 'a option Channel.sender
   end)
 
-  let rec get : type s. s hlist -> s Constant.hlist = function
-    | [] -> []
-    | r :: rs -> Option.get r.contents :: get rs
-
-  let rec set : type s. s hlist -> s Constant.hlist -> unit =
+  let rec send : type s. s hlist -> s Constant.hlist -> unit =
    fun refs values ->
     match refs, values with
     | [], [] -> ()
     | r :: rs, v :: vs ->
-      r.contents <- Some v;
-      set rs vs
+      Channel.send r (Some v);
+      send rs vs
+end
+
+module Option_receiver = struct
+  include Make (struct
+    type 'a t = 'a option Channel.receiver
+  end)
+
+  let rec recv : type s. s hlist -> s Constant.hlist = function
+    | [] -> []
+    | r :: rs -> Option.get (Channel.recv r) :: recv rs
 end

@@ -103,9 +103,9 @@ module Id = struct
     | None -> Misc.fatal_error "Inconsistent type for uid."
 
   let create_iterator { is_trie; default_value; name; _ } =
-    let handler = ref (Trie.empty is_trie) in
-    let out = ref default_value in
-    let iterator = Trie.Iterator.create is_trie handler out in
+    let send_trie, recv_trie = Channel.create (Trie.empty is_trie) in
+    let send_value, recv_value = Channel.create default_value in
+    let iterator = Trie.Iterator.create is_trie recv_trie send_value in
     let rec get_names : type a. a Trie.Iterator.hlist -> int -> string list =
       fun (type a) (iterators : a Trie.Iterator.hlist) i : string list ->
        match iterators with
@@ -113,15 +113,15 @@ module Id = struct
        | _ :: iterators ->
          (name ^ "." ^ string_of_int i) :: get_names iterators (i + 1)
     in
-    handler, { values = iterator; names = get_names iterator 0 }, out
+    send_trie, { values = iterator; names = get_names iterator 0 }, recv_value
 end
 
 module VM = Virtual_machine.Make (Trie.Iterator)
 
 let iter id f table =
-  let input_ref, it, out_ref = Id.create_iterator id in
-  input_ref.contents <- table;
-  VM.iter (fun keys -> f keys out_ref.contents) (VM.iterator it)
+  let send_input, it, recv_output = Id.create_iterator id in
+  Channel.send send_input table;
+  VM.iter (fun keys -> f keys (Channel.recv recv_output)) (VM.iterator it)
 
 let print id ?(pp_sep = Format.pp_print_cut) pp_row ppf table =
   let first = ref true in

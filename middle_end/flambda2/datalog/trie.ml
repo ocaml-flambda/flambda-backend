@@ -119,14 +119,16 @@ module Iterator = struct
 
   let create_iterator = create
 
-  let rec create : type m k v. (m, k, v) is_trie -> m ref -> v ref -> k hlist =
+  let rec create :
+      type m k v.
+      (m, k, v) is_trie -> m Channel.receiver -> v Channel.sender -> k hlist =
    fun is_trie this_ref value_handler ->
     match is_trie with
     | Map_is_trie -> [create_iterator this_ref value_handler]
     | Nested_trie next_trie ->
-      let next_ref = ref (empty next_trie) in
-      create_iterator this_ref next_ref
-      :: create next_trie next_ref value_handler
+      let send_next, recv_next = Channel.create (empty next_trie) in
+      create_iterator this_ref send_next
+      :: create next_trie recv_next value_handler
 
   let create is_trie this_ref value_handler =
     create is_trie this_ref value_handler

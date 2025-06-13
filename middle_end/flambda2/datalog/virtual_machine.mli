@@ -85,7 +85,7 @@ end) : sig
   val dispatch : ('a, _ -> 's) instruction
 
   val seek :
-    'a option ref with_name ->
+    'a option Channel.receiver with_name ->
     'a Iterator.t with_name ->
     ('b, 's) instruction ->
     ('b, 's) instruction
@@ -102,7 +102,7 @@ end) : sig
   *)
   val open_ :
     'i Iterator.t with_name ->
-    'i option ref with_name ->
+    'i option Channel.sender with_name ->
     ('a, 'i -> 's) instruction ->
     ('a, 'i -> 's) instruction ->
     ('a, 's) instruction
@@ -122,7 +122,7 @@ end) : sig
   val call :
     ('a Constant.hlist -> unit) ->
     name:string ->
-    'a Option_ref.hlist with_names ->
+    'a Option_receiver.hlist with_names ->
     ('x, 's) instruction ->
     ('x, 's) instruction
 
