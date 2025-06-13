@@ -158,6 +158,40 @@ module Vec128 = struct
     }
 end
 
+module Vec256 = struct
+  let decider =
+    { param_name = "unboxed_vec256";
+      kind = K.Naked_number_kind.Naked_vec256;
+      prove_is_a_boxed_number = T.prove_is_a_boxed_vec256
+    }
+
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_vec256, simple))
+
+  let unboxer =
+    { var_name = "unboxed_vec256";
+      poison_const = Const.naked_vec256 Vector_types.Vec256.Bit_pattern.zero;
+      unboxing_prim;
+      prove_simple = T.meet_boxed_vec256_containing_simple
+    }
+end
+
+module Vec512 = struct
+  let decider =
+    { param_name = "unboxed_vec512";
+      kind = K.Naked_number_kind.Naked_vec512;
+      prove_is_a_boxed_number = T.prove_is_a_boxed_vec512
+    }
+
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_vec512, simple))
+
+  let unboxer =
+    { var_name = "unboxed_vec512";
+      poison_const = Const.naked_vec512 Vector_types.Vec512.Bit_pattern.zero;
+      unboxing_prim;
+      prove_simple = T.meet_boxed_vec512_containing_simple
+    }
+end
+
 module Field = struct
   let unboxing_prim bak ~block ~index =
     P.Unary (Block_load { kind = bak; mut = Immutable; field = index }, block)

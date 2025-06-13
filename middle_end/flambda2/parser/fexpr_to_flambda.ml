@@ -251,6 +251,12 @@ let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
 let vec128 bits : Vector_types.Vec128.Bit_pattern.t =
   Vector_types.Vec128.Bit_pattern.of_bits bits
 
+let vec256 bits : Vector_types.Vec256.Bit_pattern.t =
+  Vector_types.Vec256.Bit_pattern.of_bits bits
+
+let vec512 bits : Vector_types.Vec512.Bit_pattern.t =
+  Vector_types.Vec512.Bit_pattern.of_bits bits
+
 let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
   Tag.Scannable.create_exn tag
 
@@ -270,6 +276,8 @@ let rec subkind :
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
   | Boxed_vec128 -> Boxed_vec128
+  | Boxed_vec256 -> Boxed_vec256
+  | Boxed_vec512 -> Boxed_vec512
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } ->
     let consts =
@@ -317,6 +325,8 @@ let const (c : Fexpr.const) : Reg_width_const.t =
   | Naked_int64 i -> Reg_width_const.naked_int64 i
   | Naked_nativeint i -> Reg_width_const.naked_nativeint (i |> targetint)
   | Naked_vec128 bits -> Reg_width_const.naked_vec128 (bits |> vec128)
+  | Naked_vec256 bits -> Reg_width_const.naked_vec256 (bits |> vec256)
+  | Naked_vec512 bits -> Reg_width_const.naked_vec512 (bits |> vec512)
 
 let rec rec_info env (ri : Fexpr.rec_info) : Rec_info_expr.t =
   let module US = Rec_info_expr.Unrolling_state in
@@ -480,10 +490,9 @@ let array_kind : 'a -> Fexpr.array_kind -> Flambda_primitive.Array_kind.t =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s | Unboxed_product _ ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s | Unboxed_product _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
-       product arrays not yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
 
 let array_set_kind :
     'a -> Fexpr.array_set_kind -> Flambda_primitive.Array_set_kind.t =
@@ -492,10 +501,9 @@ let array_set_kind :
   | Naked_floats -> Naked_floats
   | Values ia -> Values (init_or_assign env ia)
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
-       yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
@@ -830,6 +838,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           static_const (SC.boxed_nativeint (or_variable targetint env i))
         | Boxed_vec128 i ->
           static_const (SC.boxed_vec128 (or_variable vec128 env i))
+        | Boxed_vec256 i ->
+          static_const (SC.boxed_vec256 (or_variable vec256 env i))
+        | Boxed_vec512 i ->
+          static_const (SC.boxed_vec512 (or_variable vec512 env i))
         | Immutable_float_block elements ->
           static_const
             (SC.immutable_float_block

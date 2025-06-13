@@ -35,6 +35,8 @@ type t = private
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t Or_variable.t
+  | Boxed_vec256 of Vector_types.Vec256.Bit_pattern.t Or_variable.t
+  | Boxed_vec512 of Vector_types.Vec512.Bit_pattern.t Or_variable.t
   | Immutable_float_block of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
@@ -46,6 +48,10 @@ type t = private
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
   | Immutable_vec128_array of
       Vector_types.Vec128.Bit_pattern.t Or_variable.t list
+  | Immutable_vec256_array of
+      Vector_types.Vec256.Bit_pattern.t Or_variable.t list
+  | Immutable_vec512_array of
+      Vector_types.Vec512.Bit_pattern.t Or_variable.t list
   | Immutable_value_array of Simple.With_debuginfo.t list
       (** [Immutable_*_array] constructors always have at least one field. For
         empty arrays, [Empty_array] must be used. *)
@@ -85,6 +91,10 @@ val boxed_nativeint : Targetint_32_64.t Or_variable.t -> t
 
 val boxed_vec128 : Vector_types.Vec128.Bit_pattern.t Or_variable.t -> t
 
+val boxed_vec256 : Vector_types.Vec256.Bit_pattern.t Or_variable.t -> t
+
+val boxed_vec512 : Vector_types.Vec512.Bit_pattern.t Or_variable.t -> t
+
 val immutable_float_block :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list -> t
 
@@ -114,6 +124,16 @@ val immutable_nativeint_array : Targetint_32_64.t Or_variable.t list -> t
     produced. *)
 val immutable_vec128_array :
   Vector_types.Vec128.Bit_pattern.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_vec256_array :
+  Vector_types.Vec256.Bit_pattern.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_vec512_array :
+  Vector_types.Vec512.Bit_pattern.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)

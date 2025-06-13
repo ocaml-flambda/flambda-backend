@@ -14,6 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Kind = struct
+  type t =
+    | Vec128
+    | Vec256
+    | Vec512
+end
+
 module type Vector_width = sig
   val size_in_int64s : int
 end
@@ -65,15 +72,67 @@ module Vec128 = struct
     end)
 
     type bits =
-      { high : int64;
-        low : int64
+      { word0 : int64; (* Least significant *)
+        word1 : int64
       }
 
     let to_bits t =
       match to_int64_array t with
-      | [| high; low |] -> { high; low }
+      | [| word0; word1 |] -> { word0; word1 }
       | _ -> Misc.fatal_error "Vec128.to_bits: wrong size vector"
 
-    let of_bits { high; low } = of_int64_array [| high; low |]
+    let of_bits { word0; word1 } = of_int64_array [| word0; word1 |]
+  end
+end
+
+module Vec256 = struct
+  module Bit_pattern = struct
+    include Vector_by_bit_pattern (struct
+      let size_in_int64s = 4
+    end)
+
+    type bits =
+      { word0 : int64; (* Least significant *)
+        word1 : int64;
+        word2 : int64;
+        word3 : int64
+      }
+
+    let to_bits t =
+      match to_int64_array t with
+      | [| word0; word1; word2; word3 |] -> { word0; word1; word2; word3 }
+      | _ -> Misc.fatal_error "Vec256.to_bits: wrong size vector"
+
+    let of_bits { word0; word1; word2; word3 } =
+      of_int64_array [| word0; word1; word2; word3 |]
+  end
+end
+
+module Vec512 = struct
+  module Bit_pattern = struct
+    include Vector_by_bit_pattern (struct
+      let size_in_int64s = 8
+    end)
+
+    type bits =
+      { word0 : int64; (* Least significant *)
+        word1 : int64;
+        word2 : int64;
+        word3 : int64;
+        word4 : int64;
+        word5 : int64;
+        word6 : int64;
+        word7 : int64
+      }
+
+    let to_bits t =
+      match to_int64_array t with
+      | [| word0; word1; word2; word3; word4; word5; word6; word7 |] ->
+        { word0; word1; word2; word3; word4; word5; word6; word7 }
+      | _ -> Misc.fatal_error "Vec512.to_bits: wrong size vector"
+
+    let of_bits { word0; word1; word2; word3; word4; word5; word6; word7 } =
+      of_int64_array
+        [| word0; word1; word2; word3; word4; word5; word6; word7 |]
   end
 end

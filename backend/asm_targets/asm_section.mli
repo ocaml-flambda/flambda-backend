@@ -46,6 +46,8 @@ type t =
   | Read_only_data
   | Eight_byte_literals
   | Sixteen_byte_literals
+  | Thirtytwo_byte_literals
+  | Sixtyfour_byte_literals
   | Jump_tables
   | Text
   | Stapsdt_base

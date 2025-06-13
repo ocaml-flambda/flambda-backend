@@ -413,6 +413,8 @@ and 'a mixed_block_element =
   | Bits32
   | Bits64
   | Vec128
+  | Vec256
+  | Vec512
   | Word
   | Product of 'a mixed_block_element array
 
@@ -482,6 +484,8 @@ and unboxed_integer = Primitive.unboxed_integer =
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
+  | Unboxed_vec256
+  | Unboxed_vec512
 
 and boxed_float = Primitive.boxed_float =
   | Boxed_float64
@@ -494,6 +498,8 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+  | Boxed_vec256
+  | Boxed_vec512
 
 and peek_or_poke =
   | Ppp_tagged_immediate
@@ -532,6 +538,8 @@ let generic_value =
 let print_boxed_vector ppf t =
   match t with
   | Boxed_vec128 -> Format.pp_print_string ppf "Vec128"
+  | Boxed_vec256 -> Format.pp_print_string ppf "Vec256"
+  | Boxed_vec512 -> Format.pp_print_string ppf "Vec512"
 
 let equal_nullable x y =
   match x, y with
@@ -580,12 +588,14 @@ and equal_mixed_block_element :
   | Bits32, Bits32
   | Bits64, Bits64
   | Vec128, Vec128
+  | Vec256, Vec256
+  | Vec512, Vec512
   | Word, Word -> true
   | Product es1, Product es2 ->
     Misc.Stdlib.Array.equal (equal_mixed_block_element eq_param)
       es1 es2
-  | (Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-     | Word | Product _), _ -> false
+  | (Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 |
+     Vec256 | Vec512 | Word | Product _), _ -> false
 
 and equal_mixed_block_shape shape1 shape2 =
   Misc.Stdlib.Array.equal (equal_mixed_block_element Unit.equal) shape1 shape2
@@ -1424,6 +1434,8 @@ let rec transl_mixed_product_shape ~get_value_kind shape =
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
+    | Vec256 -> Vec256
+    | Vec512 -> Vec512
     | Word -> Word
     | Product shapes ->
       (* CR mshinwell: This [get_value_kind] override is a bit odd, maybe this
@@ -1442,6 +1454,8 @@ let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
+    | Vec256 -> Vec256
+    | Vec512 -> Vec512
     | Word -> Word
     | Product shapes ->
       let get_value_kind _ = generic_value in
@@ -1884,7 +1898,8 @@ let project_from_mixed_block_shape
           project_from_mixed_block_element_by_path shape.(field) path
         | Value _
         | Float_boxed _
-        | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+        | Float64 | Float32 | Bits32 | Bits64 | Word
+        | Vec128 | Vec256 | Vec512 ->
           Misc.fatal_error "project_from_mixed_block_element: path too long \
             for mixed block shape")
     in
@@ -1894,7 +1909,8 @@ let mixed_block_projection_may_allocate shape ~path =
   let rec allocates element =
     match element with
     | Float_boxed mode -> Some mode
-    | Value _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 -> None
+    | Value _ | Float64 | Float32 | Bits32 | Bits64 | Word
+    | Vec128 | Vec256 | Vec512 -> None
     | Product shape ->
       Array.fold_left (fun alloc_mode element ->
           let alloc_mode' = allocates element in
@@ -2270,6 +2286,8 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
   | Base Vec128 -> layout_unboxed_vector Unboxed_vec128
+  | Base Vec256 -> layout_unboxed_vector Unboxed_vec256
+  | Base Vec512 -> layout_unboxed_vector Unboxed_vec512
   | Base Void -> assert false
   | Product sorts ->
     layout_unboxed_product (List.map layout_of_const_sort sorts)
@@ -2321,6 +2339,8 @@ let layout_of_mixed_block_shape
     | Bits64 -> layout_unboxed_int64
     | Word -> layout_unboxed_nativeint
     | Vec128 -> layout_unboxed_vector Unboxed_vec128
+    | Vec256 -> layout_unboxed_vector Unboxed_vec256
+    | Vec512 -> layout_unboxed_vector Unboxed_vec512
     | Product shape ->
       Punboxed_product
         (Array.to_list (Array.map layout_of_mixed_block_element shape))

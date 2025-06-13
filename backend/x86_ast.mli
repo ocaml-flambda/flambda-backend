@@ -62,6 +62,8 @@ type data_type =
   | REAL4 | REAL8 (* floating point values *)
   | BYTE | WORD | DWORD | QWORD (* integer values *)
   | VEC128 (* vector values (float & integer) *)
+  | VEC256
+  | VEC512
   | NEAR | PROC
 
 type reg64 =
@@ -71,7 +73,10 @@ type reg64 =
 type reg8h =
   | AH | BH | CH | DH
 
-type regf = XMM of int
+type regf =
+  | XMM of int
+  | YMM of int
+  | ZMM of int
 
 type arch = X64 | X86
 

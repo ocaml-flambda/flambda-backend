@@ -490,6 +490,8 @@ and 'a mixed_block_element =
   | Bits32
   | Bits64
   | Vec128
+  | Vec256
+  | Vec512
   | Word
   | Product of 'a mixed_block_element array
 
@@ -513,6 +515,8 @@ and unboxed_integer = Primitive.unboxed_integer =
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
+  | Unboxed_vec256
+  | Unboxed_vec512
 
 and boxed_float = Primitive.boxed_float =
   | Boxed_float64
@@ -525,6 +529,8 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+  | Boxed_vec256
+  | Boxed_vec512
 
 and peek_or_poke =
   | Ppp_tagged_immediate

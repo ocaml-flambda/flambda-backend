@@ -105,7 +105,9 @@ let alias_kind name simple t =
         | Naked_int32 _ -> Flambda_kind.naked_int32
         | Naked_int64 _ -> Flambda_kind.naked_int64
         | Naked_nativeint _ -> Flambda_kind.naked_nativeint
-        | Naked_vec128 _ -> Flambda_kind.naked_vec128)
+        | Naked_vec128 _ -> Flambda_kind.naked_vec128
+        | Naked_vec256 _ -> Flambda_kind.naked_vec256
+        | Naked_vec512 _ -> Flambda_kind.naked_vec512)
   in
   t.kinds <- Name.Map.add name kind t.kinds
 

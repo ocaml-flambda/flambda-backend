@@ -22,6 +22,8 @@ let bprintf = Printf.bprintf
 
 let string_of_datatype = function
   | VEC128 -> "XMMWORD"
+  | VEC256 -> "YMMWORD"
+  | VEC512 -> "ZMMWORD"
   | QWORD -> "QWORD"
   | NONE -> assert false
   | REAL4 -> "REAL4"
@@ -34,6 +36,8 @@ let string_of_datatype = function
 
 let string_of_datatype_ptr = function
   | VEC128 -> "XMMWORD PTR "
+  | VEC256 -> "YMMWORD PTR "
+  | VEC512 -> "ZMMWORD PTR "
   | QWORD -> "QWORD PTR "
   | NONE -> ""
   | REAL4 -> "REAL4 PTR "

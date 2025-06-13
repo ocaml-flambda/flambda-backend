@@ -22,11 +22,11 @@ module String = Misc.Stdlib.String
 
 type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
 type unboxed_float = Unboxed_float64 | Unboxed_float32
-type unboxed_vector = Unboxed_vec128
+type unboxed_vector = Unboxed_vec128 | Unboxed_vec256 | Unboxed_vec512
 
 type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
 type boxed_float = Boxed_float64 | Boxed_float32
-type boxed_vector = Boxed_vec128
+type boxed_vector = Boxed_vec128 | Boxed_vec256 | Boxed_vec512
 
 type native_repr =
   | Repr_poly
@@ -343,6 +343,8 @@ let unboxed_float = function
 
 let unboxed_vector = function
   | Boxed_vec128 -> Unboxed_vec128
+  | Boxed_vec256 -> Unboxed_vec256
+  | Boxed_vec512 -> Unboxed_vec512
 
 (* Since these are just constant constructors, we can just use polymorphic equality and
    comparison at no performance loss. We still match on the variants to prove here that
@@ -353,8 +355,11 @@ let equal_unboxed_float
       ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
 let compare_unboxed_float
       ((Unboxed_float32 | Unboxed_float64) as f1) f2 = Stdlib.compare f1 f2
-let equal_unboxed_vector ((Unboxed_vec128) as v1) v2 = v1 = v2
-let compare_unboxed_vector ((Unboxed_vec128) as v1) v2 = Stdlib.compare v1 v2
+let equal_unboxed_vector
+      ((Unboxed_vec128 | Unboxed_vec256 | Unboxed_vec512) as v1) v2 = v1 = v2
+let compare_unboxed_vector
+      ((Unboxed_vec128 | Unboxed_vec256 | Unboxed_vec512) as v1) v2 =
+      Stdlib.compare v1 v2
 
 let equal_boxed_integer bi1 bi2 =
   equal_unboxed_integer (unboxed_integer bi1) (unboxed_integer bi2)
@@ -369,9 +374,12 @@ let compare_boxed_vector bv1 bv2 =
 
 let equal_unboxed_vector_size v1 v2 =
   (* For the purposes of layouts/native representations,
-     all 128-bit vector types are equal. *)
+     vectors of the same width are equal. *)
   match v1, v2 with
   | Unboxed_vec128, Unboxed_vec128 -> true
+  | Unboxed_vec256, Unboxed_vec256 -> true
+  | Unboxed_vec512, Unboxed_vec512 -> true
+  | (Unboxed_vec128 | Unboxed_vec256 | Unboxed_vec512), _ -> false
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
@@ -522,6 +530,10 @@ let prim_has_valid_reprs ~loc prim =
           ("64", "#", C.bits64);
           ("a128", "#", C.vec128);
           ("u128", "#", C.vec128);
+          ("a256", "#", C.vec256);
+          ("u256", "#", C.vec256);
+          ("a512", "#", C.vec512);
+          ("u512", "#", C.vec512);
         ]
       in
       let indices : (_ * Jkind_types.Sort.Const.t) list =
@@ -726,6 +738,14 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr C.vec128; Same_as_ocaml_repr C.value]
     | "%unbox_vec128" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec128]
+    | "%box_vec256" ->
+      exactly [Same_as_ocaml_repr C.vec256; Same_as_ocaml_repr C.value]
+    | "%unbox_vec256" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec256]
+    | "%box_vec512" ->
+      exactly [Same_as_ocaml_repr C.vec512; Same_as_ocaml_repr C.value]
+    | "%unbox_vec512" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec512]
 
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits64]

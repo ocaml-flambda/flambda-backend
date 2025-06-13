@@ -265,7 +265,10 @@ let string_of_reg32 = function
   | R14 -> "r14d"
   | R15 -> "r15d"
 
-let string_of_regf = function XMM n -> Printf.sprintf "xmm%d" n
+let string_of_regf = function
+  | XMM n -> Printf.sprintf "xmm%d" n
+  | YMM n -> Printf.sprintf "ymm%d" n
+  | ZMM n -> Printf.sprintf "zmm%d" n
 
 let string_of_condition = function
   | E -> "e"

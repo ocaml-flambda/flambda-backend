@@ -22,6 +22,8 @@ module TE = Typing_env
 module TEE = Typing_env_extension
 module TEL = Typing_env_level
 module Vec128 = Vector_types.Vec128.Bit_pattern
+module Vec256 = Vector_types.Vec256.Bit_pattern
+module Vec512 = Vector_types.Vec512.Bit_pattern
 
 type 'a meet_return_value = 'a TE.meet_return_value =
   | Left_input
@@ -711,14 +713,20 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Naked_vec128 head1, Naked_vec128 head2 ->
     map_result ~f:ET.create_naked_vec128
       (meet_head_of_kind_naked_vec128 env head1 head2)
+  | Naked_vec256 head1, Naked_vec256 head2 ->
+    map_result ~f:ET.create_naked_vec256
+      (meet_head_of_kind_naked_vec256 env head1 head2)
+  | Naked_vec512 head1, Naked_vec512 head2 ->
+    map_result ~f:ET.create_naked_vec512
+      (meet_head_of_kind_naked_vec512 env head1 head2)
   | Rec_info head1, Rec_info head2 ->
     map_result ~f:ET.create_rec_info
       (meet_head_of_kind_rec_info env head1 head2)
   | Region head1, Region head2 ->
     map_result ~f:ET.create_region (meet_head_of_kind_region env head1 head2)
   | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-      | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-      | Rec_info _ | Region _ ),
+      | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+      | Naked_int64 _ | Naked_nativeint _ | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 
@@ -871,6 +879,16 @@ and meet_head_of_kind_value_non_null env
       ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_vec128 ~meet_a:meet
       ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
       ~right_b:alloc_mode2
+  | Boxed_vec256 (n1, alloc_mode1), Boxed_vec256 (n2, alloc_mode2) ->
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_vec256 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
+  | Boxed_vec512 (n1, alloc_mode1), Boxed_vec512 (n2, alloc_mode2) ->
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_vec512 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -897,8 +915,8 @@ and meet_head_of_kind_value_non_null env
       (element_kind1, length1, contents1, alloc_mode1)
       (element_kind2, length2, contents2, alloc_mode2)
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
-      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-      | Closures _ | String _ | Array _ ),
+      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_vec256 _ | Boxed_vec512 _
+      | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
@@ -1154,6 +1172,22 @@ and meet_head_of_kind_naked_vec128 env t1 t2 =
     (t1 : TG.head_of_kind_naked_vec128 :> Vec128.Set.t)
     (t2 : TG.head_of_kind_naked_vec128 :> Vec128.Set.t)
     ~of_set:TG.Head_of_kind_naked_vec128.create_non_empty_set
+
+and meet_head_of_kind_naked_vec256 env t1 t2 =
+  set_meet
+    (module Vec256.Set)
+    env
+    (t1 : TG.head_of_kind_naked_vec256 :> Vec256.Set.t)
+    (t2 : TG.head_of_kind_naked_vec256 :> Vec256.Set.t)
+    ~of_set:TG.Head_of_kind_naked_vec256.create_non_empty_set
+
+and meet_head_of_kind_naked_vec512 env t1 t2 =
+  set_meet
+    (module Vec512.Set)
+    env
+    (t1 : TG.head_of_kind_naked_vec512 :> Vec512.Set.t)
+    (t2 : TG.head_of_kind_naked_vec512 :> Vec512.Set.t)
+    ~of_set:TG.Head_of_kind_naked_vec512.create_non_empty_set
 
 and meet_head_of_kind_rec_info env _t1 _t2 =
   (* CR-someday lmaurer: This could be doing things like discovering two depth
@@ -1787,6 +1821,28 @@ and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
               n_way_join_head_of_kind_naked_vec128 env (head1, id1) heads
             in
             ET.create_naked_vec128 head
+          | Naked_vec256 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_vec256 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>>+ head =
+              n_way_join_head_of_kind_naked_vec256 env (head1, id1) heads
+            in
+            ET.create_naked_vec256 head
+          | Naked_vec512 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_vec512 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>>+ head =
+              n_way_join_head_of_kind_naked_vec512 env (head1, id1) heads
+            in
+            ET.create_naked_vec512 head
           | Rec_info head1 ->
             let heads =
               extract_head_exn
@@ -2008,6 +2064,38 @@ and n_way_join_head_of_kind_value_non_null env
         in
         let>>+ n = n_way_join env ns in
         TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
+      | Boxed_vec256 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_vec256 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_vec256 n alloc_mode
+      | Boxed_vec512 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_vec512 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_vec512 n alloc_mode
       | Closures { by_function_slot; alloc_mode } ->
         let function_slots, alloc_mode =
           List.fold_right
@@ -2238,6 +2326,14 @@ and n_way_join_head_of_kind_naked_nativeint env t1 ts : _ n_way_join_result =
 
 and n_way_join_head_of_kind_naked_vec128 env t1 ts : _ n_way_join_result =
   n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_vec128.union
+    env t1 ts
+
+and n_way_join_head_of_kind_naked_vec256 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_vec256.union
+    env t1 ts
+
+and n_way_join_head_of_kind_naked_vec512 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_vec512.union
     env t1 ts
 
 and n_way_join_head_of_kind_rec_info env (t1, _) ts : _ n_way_join_result =

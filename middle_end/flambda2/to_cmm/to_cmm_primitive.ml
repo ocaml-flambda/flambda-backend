@@ -53,6 +53,8 @@ let unbox_number ~dbg kind arg =
   | Naked_float -> C.unbox_float dbg arg
   | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
+  | Naked_vec256 -> C.unbox_vec256 dbg arg
+  | Naked_vec512 -> C.unbox_vec512 dbg arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
@@ -63,6 +65,8 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
+  | Naked_vec256 -> C.box_vec256 dbg alloc_mode arg
+  | Naked_vec512 -> C.box_vec512 dbg alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
@@ -102,6 +106,8 @@ let mixed_block_kinds shape =
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
         | Naked_vec128 -> KS.naked_vec128
+        | Naked_vec256 -> KS.naked_vec256
+        | Naked_vec512 -> KS.naked_vec512
         | Naked_nativeint -> KS.naked_nativeint)
       (Array.to_list (K.Mixed_block_shape.flat_suffix shape))
   in
@@ -131,6 +137,8 @@ let memory_chunk_of_flat_suffix_element :
   | Naked_float32 -> Single { reg = Float32 }
   | Naked_int32 -> Thirtytwo_signed
   | Naked_vec128 -> Onetwentyeight_unaligned
+  | Naked_vec256 -> Twofiftysix_unaligned
+  | Naked_vec512 -> Fivetwelve_unaligned
   | Naked_int64 | Naked_nativeint -> Word_int
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
@@ -235,6 +243,8 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
   | Naked_vec128s -> C.allocate_unboxed_vec128_array ~elements:args mode dbg
+  | Naked_vec256s -> C.allocate_unboxed_vec256_array ~elements:args mode dbg
+  | Naked_vec512s -> C.allocate_unboxed_vec512_array ~elements:args mode dbg
   | Unboxed_product _ ->
     if P.Array_kind.must_be_gc_scannable kind
     then C.make_alloc ~mode dbg ~tag:0 args
@@ -260,8 +270,11 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
   | Naked_vec128s -> C.unboxed_vec128_array_length arr dbg
+  | Naked_vec256s -> C.unboxed_vec256_array_length arr dbg
+  | Naked_vec512s -> C.unboxed_vec512_array_length arr dbg
 
-let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
+let array_load_vector ~(vec_kind : Vector_types.Kind.t) ~dbg ~element_width_log2
+    ~has_custom_ops arr index =
   let index =
     C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
   in
@@ -271,9 +284,19 @@ let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
     then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
     else index
   in
-  C.unaligned_load_128 arr index dbg
+  match vec_kind with
+  | Vec128 -> C.unaligned_load_128 arr index dbg
+  | Vec256 -> C.unaligned_load_256 arr index dbg
+  | Vec512 -> C.unaligned_load_512 arr index dbg
 
-let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
+let array_load_128 = array_load_vector ~vec_kind:Vec128
+
+let array_load_256 = array_load_vector ~vec_kind:Vec256
+
+let array_load_512 = array_load_vector ~vec_kind:Vec512
+
+let array_set_vector ~(vec_kind : Vector_types.Kind.t) ~dbg ~element_width_log2
+    ~has_custom_ops arr index new_value =
   let index =
     C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
   in
@@ -283,7 +306,16 @@ let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
     then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
     else index
   in
-  C.unaligned_set_128 arr index new_value dbg
+  match vec_kind with
+  | Vec128 -> C.unaligned_set_128 arr index new_value dbg
+  | Vec256 -> C.unaligned_set_256 arr index new_value dbg
+  | Vec512 -> C.unaligned_set_512 arr index new_value dbg
+
+let array_set_128 = array_set_vector ~vec_kind:Vec128
+
+let array_set_256 = array_set_vector ~vec_kind:Vec256
+
+let array_set_512 = array_set_vector ~vec_kind:Vec512
 
 let array_load ~dbg (array_kind : P.Array_kind.t)
     (load_kind : P.Array_load_kind.t) ~arr ~index =
@@ -320,37 +352,79 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
   | Naked_vec128s, Naked_vec128s ->
     array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
       ~has_custom_ops:true arr index
+  | Naked_vec128s, Naked_vec256s ->
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index
+  | Naked_vec128s, Naked_vec512s ->
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index
+  | (Immediates | Naked_floats), Naked_vec256s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index
+  | (Naked_int64s | Naked_nativeints), Naked_vec256s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index
+  | (Naked_int32s | Naked_float32s), Naked_vec256s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index
+  | Naked_vec256s, Naked_vec128s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index
+  | Naked_vec256s, Naked_vec256s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index
+  | Naked_vec256s, Naked_vec512s ->
+    array_load_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index
+  | (Immediates | Naked_floats), Naked_vec512s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index
+  | (Naked_int64s | Naked_nativeints), Naked_vec512s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index
+  | (Naked_int32s | Naked_float32s), Naked_vec512s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index
+  | Naked_vec512s, Naked_vec128s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index
+  | Naked_vec512s, Naked_vec256s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index
+  | Naked_vec512s, Naked_vec512s ->
+    array_load_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Values ) ->
     Misc.fatal_errorf
       "Cannot use array load kind [Values] on naked number/vector arrays:@ %a"
       Debuginfo.print_compact dbg
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Immediates )
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
-      | Naked_vec128s ),
+      | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       (Naked_int64s | Naked_nativeints) )
   | ( ( Values | Immediates | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_floats ) ->
     Misc.fatal_errorf
       "Array reinterpret load operation (array kind %a, array ref kind %a) not \
        yet supported"
       P.Array_kind.print array_kind P.Array_load_kind.print load_kind
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_float32s )
   | ( ( Values | Immediates | Naked_floats | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_int32s ) ->
     Misc.fatal_errorf
       "Array reinterpret loads with 32-bit load kinds are not supported:@ %a"
       Debuginfo.print_compact dbg
-  | Values, Naked_vec128s ->
+  | Values, (Naked_vec128s | Naked_vec256s | Naked_vec512s) ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
-  | Unboxed_product _, Naked_vec128s ->
+  | Unboxed_product _, (Naked_vec128s | Naked_vec256s | Naked_vec512s) ->
     Misc.fatal_errorf
       "Loading of SIMD vectors from unboxed product arrays is not currently \
        supported:@ %a"
@@ -400,37 +474,79 @@ let array_set0 ~dbg (array_kind : P.Array_kind.t)
   | Naked_vec128s, Naked_vec128s ->
     array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
       ~has_custom_ops:true arr index new_value
+  | Naked_vec128s, Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec128s, Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index new_value
+  | (Immediates | Naked_floats), Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index new_value
+  | (Naked_int64s | Naked_nativeints), Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index new_value
+  | (Naked_int32s | Naked_float32s), Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec256s, Naked_vec128s ->
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec256s, Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec256s, Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:5
+      ~has_custom_ops:true arr index new_value
+  | (Immediates | Naked_floats), Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index new_value
+  | (Naked_int64s | Naked_nativeints), Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index new_value
+  | (Naked_int32s | Naked_float32s), Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec512s, Naked_vec128s ->
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec512s, Naked_vec256s ->
+    array_set_256 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index new_value
+  | Naked_vec512s, Naked_vec512s ->
+    array_set_512 ~ptr_out_of_heap:false ~dbg ~element_width_log2:6
+      ~has_custom_ops:true arr index new_value
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Values _ ) ->
     Misc.fatal_errorf
       "Cannot use array set kind [Values] on naked number/vector arrays:@ %a"
       Debuginfo.print_compact dbg
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Immediates )
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
-      | Naked_vec128s ),
+      | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       (Naked_int64s | Naked_nativeints) )
   | ( ( Values | Immediates | Naked_int32s | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_floats ) ->
     Misc.fatal_errorf
       "Array reinterpret set operation (array kind %a, array ref kind %a) not \
        yet supported"
       P.Array_kind.print array_kind P.Array_set_kind.print set_kind
   | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_float32s )
   | ( ( Values | Immediates | Naked_floats | Naked_float32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ),
+      | Naked_nativeints | Naked_vec128s | Naked_vec256s | Naked_vec512s ),
       Naked_int32s ) ->
     Misc.fatal_errorf
       "Array reinterpret stores with 32-bit set kinds are not supported:@ %a"
       Debuginfo.print_compact dbg
-  | Values, Naked_vec128s ->
+  | Values, (Naked_vec128s | Naked_vec256s | Naked_vec512s) ->
     Misc.fatal_error "Attempted to store a SIMD vector to a value array."
-  | Unboxed_product _, Naked_vec128s ->
+  | Unboxed_product _, (Naked_vec128s | Naked_vec256s | Naked_vec512s) ->
     Misc.fatal_errorf
       "Storing of SIMD vectors from unboxed product arrays is not currently \
        supported:@ %a"

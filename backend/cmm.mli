@@ -23,6 +23,8 @@ type machtype_component = Cmx_format.machtype_component =
   | Int
   | Float
   | Vec128
+  | Vec256
+  | Vec512
   | Float32
   | Valx2
 
@@ -68,6 +70,10 @@ val typ_float32 : machtype
 
 val typ_vec128 : machtype
 
+val typ_vec256 : machtype
+
+val typ_vec512 : machtype
+
 (** Least upper bound of two [machtype_component]s. *)
 val lub_component :
   machtype_component -> machtype_component -> machtype_component
@@ -85,10 +91,19 @@ type exttype =
   | XFloat32  (**r single-precision FP number *)
   | XFloat  (**r double-precision FP number  *)
   | XVec128  (**r 128-bit vector *)
+  | XVec256  (**r 256-bit vector *)
+  | XVec512  (**r 512-bit vector *)
 
 val machtype_of_exttype : exttype -> machtype
 
 val machtype_of_exttype_list : exttype list -> machtype
+
+type stack_align =
+  | Align_16
+  | Align_32
+  | Align_64
+
+val equal_stack_align : stack_align -> stack_align -> bool
 
 type integer_comparison = Lambda.integer_comparison =
   | Ceq
@@ -228,6 +243,22 @@ type vec128_type =
   | Float32x4
   | Float64x2
 
+type vec256_type =
+  | Int8x32
+  | Int16x16
+  | Int32x8
+  | Int64x4
+  | Float32x8
+  | Float64x4
+
+type vec512_type =
+  | Int8x64
+  | Int16x32
+  | Int32x16
+  | Int64x8
+  | Float32x16
+  | Float64x8
+
 type memory_chunk =
   | Byte_unsigned
   | Byte_signed
@@ -242,6 +273,10 @@ type memory_chunk =
   | Double (* word-aligned 64-bit float see PR#10433 *)
   | Onetwentyeight_unaligned (* word-aligned 128-bit vector *)
   | Onetwentyeight_aligned (* 16-byte-aligned 128-bit vector *)
+  | Twofiftysix_unaligned (* word-aligned 256-bit vector *)
+  | Twofiftysix_aligned (* 32-byte-aligned 256-bit vector *)
+  | Fivetwelve_unaligned (* word-aligned 512-bit vector *)
+  | Fivetwelve_aligned (* 64-byte-aligned 512-bit vector *)
 
 (* These casts compile to a single move instruction. If the operands are
    assigned the same physical register, the move will be omitted entirely. *)
@@ -288,12 +323,16 @@ type alloc_block_kind =
   | Alloc_block_kind_float
   | Alloc_block_kind_float32
   | Alloc_block_kind_vec128
+  | Alloc_block_kind_vec256
+  | Alloc_block_kind_vec512
   | Alloc_block_kind_boxed_int of Primitive.boxed_integer
   | Alloc_block_kind_float_array
   | Alloc_block_kind_float32_u_array
   | Alloc_block_kind_int32_u_array
   | Alloc_block_kind_int64_u_array
   | Alloc_block_kind_vec128_u_array
+  | Alloc_block_kind_vec256_u_array
+  | Alloc_block_kind_vec512_u_array
 
 (** Due to Comballoc, a single Ialloc instruction may combine several
     unrelated allocations. Their Debuginfo.t (which may differ) are stored
@@ -409,10 +448,28 @@ type symbol =
   }
 
 (* SIMD vectors are untyped in the backend. This record holds the bitwise
-   representation of a 128-bit value. *)
+   representation of a 128-bit value. [word0] is the least significant word. *)
 type vec128_bits =
-  { low : int64;
-    high : int64
+  { word0 : int64; (* Least significant *)
+    word1 : int64
+  }
+
+type vec256_bits =
+  { word0 : int64; (* Least significant *)
+    word1 : int64;
+    word2 : int64;
+    word3 : int64
+  }
+
+type vec512_bits =
+  { word0 : int64; (* Least significant *)
+    word1 : int64;
+    word2 : int64;
+    word3 : int64;
+    word4 : int64;
+    word5 : int64;
+    word6 : int64;
+    word7 : int64
   }
 
 val global_symbol : string -> symbol
@@ -430,6 +487,8 @@ type expression =
   | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
+  | Cconst_vec256 of vec256_bits * Debuginfo.t
+  | Cconst_vec512 of vec512_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -499,6 +558,8 @@ type data_item =
   | Csingle of float
   | Cdouble of float
   | Cvec128 of vec128_bits
+  | Cvec256 of vec256_bits
+  | Cvec512 of vec512_bits
   | Csymbol_address of symbol
   | Csymbol_offset of symbol * int
   | Cstring of string

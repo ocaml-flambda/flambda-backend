@@ -358,6 +358,10 @@ let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
 let vec128 v = v |> Vector_types.Vec128.Bit_pattern.to_bits
 
+let vec256 v = v |> Vector_types.Vec256.Bit_pattern.to_bits
+
+let vec512 v = v |> Vector_types.Vec512.Bit_pattern.to_bits
+
 let targetint i = i |> Targetint_32_64.to_int64
 
 let const c : Fexpr.const =
@@ -374,6 +378,10 @@ let const c : Fexpr.const =
   | Naked_int64 i -> Naked_int64 i
   | Naked_vec128 bits ->
     Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
+  | Naked_vec256 bits ->
+    Naked_vec256 (Vector_types.Vec256.Bit_pattern.to_bits bits)
+  | Naked_vec512 bits ->
+    Naked_vec512 (Vector_types.Vec512.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
   | Null -> Misc.fatal_error "null not supported in fexpr"
 
@@ -432,6 +440,8 @@ let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
   | Boxed_vec128 -> Boxed_vec128
+  | Boxed_vec256 -> Boxed_vec256
+  | Boxed_vec512 -> Boxed_vec512
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } -> variant_subkind consts non_consts
   | Float_array -> Float_array
@@ -440,10 +450,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_product_array ->
+  | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_vec256_array
+  | Unboxed_vec512_array | Unboxed_product_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
-       product arrays not yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -619,10 +629,9 @@ let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s | Unboxed_product _ ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s | Unboxed_product _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/unboxed product \
-       arrays not yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
 
 let fexpr_of_array_set_kind env
     (array_set_kind : Flambda_primitive.Array_set_kind.t) : Fexpr.array_set_kind
@@ -632,10 +641,9 @@ let fexpr_of_array_set_kind env
   | Naked_floats -> Naked_floats
   | Values ia -> Values (init_or_assign env ia)
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
-       yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
@@ -747,6 +755,8 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)
   | Boxed_nativeint i -> Boxed_nativeint (or_variable targetint env i)
   | Boxed_vec128 i -> Boxed_vec128 (or_variable vec128 env i)
+  | Boxed_vec256 i -> Boxed_vec256 (or_variable vec256 env i)
+  | Boxed_vec512 i -> Boxed_vec512 (or_variable vec512 env i)
   | Immutable_float_block elements ->
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->
@@ -755,10 +765,10 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
   | Immutable_int64_array _ | Immutable_nativeint_array _
-  | Immutable_vec128_array _ ->
+  | Immutable_vec128_array _ | Immutable_vec256_array _
+  | Immutable_vec512_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
-       yet implemented"
+      "fexpr support for arrays of unboxed elements not yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

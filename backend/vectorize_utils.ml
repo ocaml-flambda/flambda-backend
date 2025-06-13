@@ -10,6 +10,8 @@ module Width_in_bits = struct
     | W32
     | W64
     | W128
+    | W256
+    | W512
 
   let of_memory_chunk (c : Cmm.memory_chunk) =
     match c with
@@ -18,21 +20,32 @@ module Width_in_bits = struct
     | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> W32
     | Word_int | Word_val | Double -> W64
     | Onetwentyeight_unaligned | Onetwentyeight_aligned -> W128
+    | Twofiftysix_unaligned | Twofiftysix_aligned -> W256
+    | Fivetwelve_unaligned | Fivetwelve_aligned -> W512
 
   let of_atomic_bitwidth (b : Cmm.atomic_bitwidth) =
     match b with Thirtytwo -> W32 | Sixtyfour -> W64 | Word -> W64
 
   let to_int t =
-    match t with W128 -> 128 | W64 -> 64 | W32 -> 32 | W16 -> 16 | W8 -> 8
+    match t with
+    | W512 -> 512
+    | W256 -> 256
+    | W128 -> 128
+    | W64 -> 64
+    | W32 -> 32
+    | W16 -> 16
+    | W8 -> 8
 
   let equal t1 t2 =
     match t1, t2 with
+    | W512, W512 -> true
+    | W256, W256 -> true
     | W128, W128 -> true
     | W64, W64 -> true
     | W32, W32 -> true
     | W16, W16 -> true
     | W8, W8 -> true
-    | (W128 | W64 | W32 | W16 | W8), _ -> false
+    | (W512 | W256 | W128 | W64 | W32 | W16 | W8), _ -> false
 
   let print ppf t = Format.fprintf ppf "%d" (to_int t)
 end
@@ -115,10 +128,11 @@ let vectorizable_machtypes (r1 : Reg.t) (r2 : Reg.t) =
        [Addr], we could generalize [machtype], but for simplicity do not
        vectorize [Addr]. *)
     false
-  | (Vec128 | Valx2), (Val | Int | Float | Float32 | Vec128 | Valx2)
-  | (Val | Int | Float | Float32), (Vec128 | Valx2) ->
-    Misc.fatal_errorf "Unexpected vector machtype Vec128 or Valx2: %a %a"
-      Printreg.reg r1 Printreg.reg r2
+  | ( (Vec128 | Vec256 | Vec512 | Valx2),
+      (Val | Int | Float | Float32 | Vec128 | Vec256 | Vec512 | Valx2) )
+  | (Val | Int | Float | Float32), (Vec128 | Vec256 | Vec512 | Valx2) ->
+    Misc.fatal_errorf "Unexpected vector machtype: %a %a" Printreg.reg r1
+      Printreg.reg r2
   | Val, Val -> true
   | Val, (Int | Float | Float32) | (Int | Float | Float32), Val -> false
   | (Int | Float | Float32), (Int | Float | Float32) ->
@@ -146,5 +160,5 @@ let vectorize_machtypes (pack : Reg.t list) : Cmm.machtype_component =
     | Val, 2 -> Valx2
     | (Val | Float | Float32), n ->
       Misc.fatal_errorf "Unexpected pack size %d for %a" n Printreg.reglist pack
-    | Vec128, _ | Valx2, _ ->
+    | Vec128, _ | Vec256, _ | Vec512, _ | Valx2, _ ->
       Misc.fatal_errorf "Unexpected machtype for %a" Printreg.reg hd)

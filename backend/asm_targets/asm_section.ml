@@ -46,6 +46,8 @@ type t =
   | Read_only_data
   | Eight_byte_literals
   | Sixteen_byte_literals
+  | Thirtytwo_byte_literals
+  | Sixtyfour_byte_literals
   | Jump_tables
   | Text
   | Stapsdt_base
@@ -76,7 +78,8 @@ let is_delayed = function
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
       | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
-  | Jump_tables | Text | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh ->
+  | Thirtytwo_byte_literals | Sixtyfour_byte_literals | Jump_tables | Text
+  | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh ->
     false
 
 let print ppf t =
@@ -96,6 +99,8 @@ let print ppf t =
     | Read_only_data -> "Read_only_data"
     | Eight_byte_literals -> "Eight_byte_literals"
     | Sixteen_byte_literals -> "Sixteen_byte_literals"
+    | Thirtytwo_byte_literals -> "Thirtytwo_byte_literals"
+    | Sixtyfour_byte_literals -> "Sixtyfour_byte_literals"
     | Jump_tables -> "Jump_tables"
     | Text -> "Text"
     | Stapsdt_base -> "Stapsdt_base"
@@ -112,8 +117,8 @@ let equal t1 t2 = Stdlib.compare t1 t2 = 0
 let section_is_text = function
   | Text -> true
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
-  | Jump_tables | DWARF _ | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh
-    ->
+  | Thirtytwo_byte_literals | Sixtyfour_byte_literals | Jump_tables | DWARF _
+  | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh ->
     false
 
 type section_details =
@@ -188,6 +193,16 @@ let details t ~first_occurrence =
     | Sixteen_byte_literals, _, Win64 -> data ()
     | Sixteen_byte_literals, _, _ ->
       [".rodata.cst16"], Some "aM", ["@progbits"; "16"]
+    | Thirtytwo_byte_literals, _, (MinGW_64 | Cygwin) ->
+      [".rdata"], Some "dr", []
+    | Thirtytwo_byte_literals, _, Win64 -> data ()
+    | Thirtytwo_byte_literals, _, _ ->
+      [".rodata.cst32"], Some "aM", ["@progbits"; "32"]
+    | Sixtyfour_byte_literals, _, (MinGW_64 | Cygwin) ->
+      [".rdata"], Some "dr", []
+    | Sixtyfour_byte_literals, _, Win64 -> data ()
+    | Sixtyfour_byte_literals, _, _ ->
+      [".rodata.cst64"], Some "aM", ["@progbits"; "64"]
     | Jump_tables, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
     | Jump_tables, _, (MinGW_32 | Win32) -> data ()
     | Jump_tables, _, (MacOS_like | Win64) ->

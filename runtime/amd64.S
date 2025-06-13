@@ -376,6 +376,8 @@
 
 /* Win64 API: callee-save regs are rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 */
 
+// CR-someday mslater: support wider SIMD on Windows
+
 #define PUSH_CALLEE_SAVE_REGS                               \
         pushq   %rbx; CFI_ADJUST (8); CFI_OFFSET(rbx, -16); \
         pushq   %rbp; CFI_ADJUST (8); CFI_OFFSET(rbp, -24); \
@@ -493,9 +495,38 @@ G(caml_system__code_begin):
 /* Allocation */
 /******************************************************************************/
 
+/* Loading and saving SIMD registers XMM/YMM/ZMM */
+
+#define DO_0_15(X) \
+X(0) X(1) X(2) X(3) X(4) X(5) X(6) X(7) X(8) X(9) X(10) X(11) X(12) X(13) X(14) X(15)
+
+#define DO_0_31(X) \
+DO_0_15(X) \
+X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(29) X(30) X(31)
+
+#define SIMD_REGS_OFFSET (13*8) /* gc_regs_bucket starts with 13 int64 regs */
+
+#define SAVE_XMM(i) movupd %xmm##i, (i*16 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_XMM_REGS DO_0_15(SAVE_XMM)
+
+#define RESTORE_XMM(i) movupd (i*16 + SIMD_REGS_OFFSET)(%r15), %xmm##i;
+#define RESTORE_XMM_REGS DO_0_15(RESTORE_XMM)
+
+#define SAVE_YMM(i) vmovupd %ymm##i, (i*32 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_YMM_REGS DO_0_15(SAVE_YMM)
+
+#define RESTORE_YMM(i) vmovupd (i*32 + SIMD_REGS_OFFSET)(%r15), %ymm##i;
+#define RESTORE_YMM_REGS DO_0_15(RESTORE_YMM)
+
+#define SAVE_ZMM(i) vmovupd %zmm##i, (i*64 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_ZMM_REGS DO_0_31(SAVE_ZMM)
+
+#define RESTORE_ZMM(i) vmovupd (i*64 + SIMD_REGS_OFFSET)(%r15), %zmm##i;
+#define RESTORE_ZMM_REGS DO_0_31(RESTORE_ZMM)
+
 /* Save all of the registers that may be in use to a free gc_regs bucket.
    Returns: bucket in %r15. Clobbers %r11 (after saving it) */
-#define SAVE_ALL_REGS                                  \
+#define SAVE_ALL_REGS(simd)                            \
     /* First, save the young_ptr. */                   \
         movq    %r15, Caml_state(young_ptr);           \
     /* Now, use %r15 to point to the gc_regs bucket */ \
@@ -517,25 +548,10 @@ G(caml_system__code_begin):
         movq    %r10,        10*8(%r15);               \
              /* %r11 is at   11*8(%r15); */            \
         movq    %rbp,        12*8(%r15);               \
-        movupd  %xmm0,       (0*16 + 13*8)(%r15);      \
-        movupd  %xmm1,       (1*16 + 13*8)(%r15);      \
-        movupd  %xmm2,       (2*16 + 13*8)(%r15);      \
-        movupd  %xmm3,       (3*16 + 13*8)(%r15);      \
-        movupd  %xmm4,       (4*16 + 13*8)(%r15);      \
-        movupd  %xmm5,       (5*16 + 13*8)(%r15);      \
-        movupd  %xmm6,       (6*16 + 13*8)(%r15);      \
-        movupd  %xmm7,       (7*16 + 13*8)(%r15);      \
-        movupd  %xmm8,       (8*16 + 13*8)(%r15);      \
-        movupd  %xmm9,       (9*16 + 13*8)(%r15);      \
-        movupd  %xmm10,      (10*16 + 13*8)(%r15);     \
-        movupd  %xmm11,      (11*16 + 13*8)(%r15);     \
-        movupd  %xmm12,      (12*16 + 13*8)(%r15);     \
-        movupd  %xmm13,      (13*16 + 13*8)(%r15);     \
-        movupd  %xmm14,      (14*16 + 13*8)(%r15);     \
-        movupd  %xmm15,      (15*16 + 13*8)(%r15)
+        SAVE_ ## simd ## _REGS
 
 /* Undo SAVE_ALL_REGS. Expects gc_regs bucket in %r15 */
-#define RESTORE_ALL_REGS                               \
+#define RESTORE_ALL_REGS(simd)                         \
     /* Restore %rax, freeing up the next ptr slot */   \
         movq    0*8(%r15), %rax;                       \
         movq    Caml_state(gc_regs_buckets), %r11;     \
@@ -554,55 +570,42 @@ G(caml_system__code_begin):
         movq         10*8(%r15),%r10;                  \
         movq         11*8(%r15),%r11;                  \
         movq         12*8(%r15),%rbp;                  \
-        movupd       (0*16 + 13*8)(%r15),%xmm0;        \
-        movupd       (1*16 + 13*8)(%r15),%xmm1;        \
-        movupd       (2*16 + 13*8)(%r15),%xmm2;        \
-        movupd       (3*16 + 13*8)(%r15),%xmm3;        \
-        movupd       (4*16 + 13*8)(%r15),%xmm4;        \
-        movupd       (5*16 + 13*8)(%r15),%xmm5;        \
-        movupd       (6*16 + 13*8)(%r15),%xmm6;        \
-        movupd       (7*16 + 13*8)(%r15),%xmm7;        \
-        movupd       (8*16 + 13*8)(%r15),%xmm8;        \
-        movupd       (9*16 + 13*8)(%r15),%xmm9;        \
-        movupd       (10*16 + 13*8)(%r15),%xmm10;      \
-        movupd       (11*16 + 13*8)(%r15),%xmm11;      \
-        movupd       (12*16 + 13*8)(%r15),%xmm12;      \
-        movupd       (13*16 + 13*8)(%r15),%xmm13;      \
-        movupd       (14*16 + 13*8)(%r15),%xmm14;      \
-        movupd       (15*16 + 13*8)(%r15),%xmm15;      \
+        RESTORE_ ## simd ## _REGS;                     \
         movq    Caml_state(young_ptr), %r15
+
+// CR-soon mslater: save SIMD registers under TSAN
 
 /* Save non-callee saved registers that may be in use to a free gc_regs
    bucket, except for %rbp and %xmm8-%xmm15 as they are not used to pass
    arguments and return values in the System V amd64 ABI.
    Returns: bucket in %r15. Clobbers %r11 (after saving it) */
 #ifdef WITH_THREAD_SANITIZER
-#define TSAN_SAVE_CALLER_REGS                               \
-    /* First, save the young_ptr. */                   \
-        movq    %r15, Caml_state(young_ptr);           \
-    /* Now, use %r15 to point to the gc_regs bucket */ \
-    /* We save %r11 first to allow it to be scratch */ \
-        movq    Caml_state(gc_regs_buckets), %r15;     \
-        movq    %r11, 11*8(%r15);                      \
-        movq    0(%r15), %r11; /* next ptr */          \
-        movq    %r11, Caml_state(gc_regs_buckets);     \
-        movq    %rax,         0*8(%r15);               \
-        movq    %rdi,         2*8(%r15);               \
-        movq    %rsi,         3*8(%r15);               \
-        movq    %rdx,         4*8(%r15);               \
-        movq    %rcx,         5*8(%r15);               \
-        movq    %r8,          6*8(%r15);               \
-        movq    %r9,          7*8(%r15);               \
-        movq    %r10,        10*8(%r15);               \
-             /* %r11 is at   11*8(%r15); */            \
-        movupd  %xmm0,   (0*16 + 13*8)(%r15);          \
-        movupd  %xmm1,   (1*16 + 13*8)(%r15);          \
-        movupd  %xmm2,   (2*16 + 13*8)(%r15);          \
-        movupd  %xmm3,   (3*16 + 13*8)(%r15);          \
-        movupd  %xmm4,   (4*16 + 13*8)(%r15);          \
-        movupd  %xmm5,   (5*16 + 13*8)(%r15);          \
-        movupd  %xmm6,   (6*16 + 13*8)(%r15);          \
-        movupd  %xmm7,   (7*16 + 13*8)(%r15);
+#define TSAN_SAVE_CALLER_REGS                            \
+    /* First, save the young_ptr. */                     \
+        movq    %r15, Caml_state(young_ptr);             \
+    /* Now, use %r15 to point to the gc_regs bucket */   \
+    /* We save %r11 first to allow it to be scratch */   \
+        movq    Caml_state(gc_regs_buckets), %r15;       \
+        movq    %r11, 11*8(%r15);                        \
+        movq    0(%r15), %r11; /* next ptr */            \
+        movq    %r11, Caml_state(gc_regs_buckets);       \
+        movq    %rax,         0*8(%r15);                 \
+        movq    %rdi,         2*8(%r15);                 \
+        movq    %rsi,         3*8(%r15);                 \
+        movq    %rdx,         4*8(%r15);                 \
+        movq    %rcx,         5*8(%r15);                 \
+        movq    %r8,          6*8(%r15);                 \
+        movq    %r9,          7*8(%r15);                 \
+        movq    %r10,        10*8(%r15);                 \
+             /* %r11 is at   11*8(%r15); */              \
+        movupd  %xmm0,   (0*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm1,   (1*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm2,   (2*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm3,   (3*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm4,   (4*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm5,   (5*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm6,   (6*16 + SIMD_REGS_OFFSET)(%r15) \
+        movupd  %xmm7,   (7*16 + SIMD_REGS_OFFSET)(%r15) ;
 #else
 #define TSAN_SAVE_CALLER_REGS
 #endif
@@ -610,83 +613,91 @@ G(caml_system__code_begin):
 /* Restore registers saved by TSAN_SAVE_CALLER_REGS. Expects gc_regs bucket in
    %r15 */
 #ifdef WITH_THREAD_SANITIZER
-#define TSAN_RESTORE_CALLER_REGS                            \
-    /* Restore %rax, freeing up the next ptr slot */   \
-        movq    0*8(%r15), %rax;                       \
-        movq    Caml_state(gc_regs_buckets), %r11;     \
-        movq    %r11, 0(%r15); /* next ptr */          \
-        movq    %r15, Caml_state(gc_regs_buckets);     \
-           /* above:  0*8(%r15),%rax; */               \
-        movq          2*8(%r15),%rdi;                  \
-        movq          3*8(%r15),%rsi;                  \
-        movq          4*8(%r15),%rdx;                  \
-        movq          5*8(%r15),%rcx;                  \
-        movq          6*8(%r15),%r8;                   \
-        movq          7*8(%r15),%r9;                   \
-        movq         10*8(%r15),%r10;                  \
-        movq         11*8(%r15),%r11;                  \
-        movupd    (0*16 + 13*8)(%r15),%xmm0;           \
-        movupd    (1*16 + 13*8)(%r15),%xmm1;           \
-        movupd    (2*16 + 13*8)(%r15),%xmm2;           \
-        movupd    (3*16 + 13*8)(%r15),%xmm3;           \
-        movupd    (4*16 + 13*8)(%r15),%xmm4;           \
-        movupd    (5*16 + 13*8)(%r15),%xmm5;           \
-        movupd    (6*16 + 13*8)(%r15),%xmm6;           \
-        movupd    (7*16 + 13*8)(%r15),%xmm7;           \
+#define TSAN_RESTORE_CALLER_REGS                         \
+    /* Restore %rax, freeing up the next ptr slot */     \
+        movq    0*8(%r15), %rax;                         \
+        movq    Caml_state(gc_regs_buckets), %r11;       \
+        movq    %r11, 0(%r15); /* next ptr */            \
+        movq    %r15, Caml_state(gc_regs_buckets);       \
+           /* above:  0*8(%r15),%rax; */                 \
+        movq          2*8(%r15),%rdi;                    \
+        movq          3*8(%r15),%rsi;                    \
+        movq          4*8(%r15),%rdx;                    \
+        movq          5*8(%r15),%rcx;                    \
+        movq          6*8(%r15),%r8;                     \
+        movq          7*8(%r15),%r9;                     \
+        movq         10*8(%r15),%r10;                    \
+        movq         11*8(%r15),%r11;                    \
+        movupd    (0*16 + SIMD_REGS_OFFSET)(%r15),%xmm0; \
+        movupd    (1*16 + SIMD_REGS_OFFSET)(%r15),%xmm1; \
+        movupd    (2*16 + SIMD_REGS_OFFSET)(%r15),%xmm2; \
+        movupd    (3*16 + SIMD_REGS_OFFSET)(%r15),%xmm3; \
+        movupd    (4*16 + SIMD_REGS_OFFSET)(%r15),%xmm4; \
+        movupd    (5*16 + SIMD_REGS_OFFSET)(%r15),%xmm5; \
+        movupd    (6*16 + SIMD_REGS_OFFSET)(%r15),%xmm6; \
+        movupd    (7*16 + SIMD_REGS_OFFSET)(%r15),%xmm7; \
         movq    Caml_state(young_ptr), %r15
 #else
 #define TSAN_RESTORE_CALLER_REGS
 #endif
 
+#define Make_call_realloc_stack(suffix, simd)        \
+    FUNCTION(G(caml_call_realloc_stack ## suffix))   \
+    CFI_STARTPROC                                  ; \
+        CFI_SIGNAL_FRAME;                            \
+        ENTER_FUNCTION;                              \
+        SAVE_ALL_REGS(simd);                         \
+        movq    RETADDR_ENTRY_SIZE(%rsp), C_ARG_1; /* argument */ \
+        SWITCH_OCAML_TO_C;                           \
+        C_call  (GCALL(caml_try_realloc_stack));     \
+        SWITCH_C_TO_OCAML;                           \
+        cmpq    $0, %rax;                            \
+        jz      1f;                                  \
+        RESTORE_ALL_REGS(simd);                      \
+        LEAVE_FUNCTION;                              \
+        ret;                                         \
+1:      /* Restore the gc_regs bucket popped by SAVE_ALL_REGS */ \
+        movq    Caml_state(gc_regs_buckets), %r11;   \
+        movq    %r11, 0(%r15); /* next ptr */        \
+        movq    %r15, Caml_state(gc_regs_buckets);   \
+        SWITCH_OCAML_TO_C;                           \
+        LEA_VAR(caml_exn_Stack_overflow, %rdi);      \
+        C_call  (GCALL(caml_raise_async));           \
+    CFI_ENDPROC                          ;           \
+    ENDFUNCTION(G(caml_call_realloc_stack ## suffix))
 
-FUNCTION(G(caml_call_realloc_stack))
-CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-        SAVE_ALL_REGS
-        movq    RETADDR_ENTRY_SIZE(%rsp), C_ARG_1 /* argument */
-        SWITCH_OCAML_TO_C
-        C_call  (GCALL(caml_try_realloc_stack))
-        SWITCH_C_TO_OCAML
-        cmpq    $0, %rax
-        jz      1f
-        RESTORE_ALL_REGS
-        LEAVE_FUNCTION
-        ret
-1:      /* Restore the gc_regs bucket popped by SAVE_ALL_REGS */
-        movq    Caml_state(gc_regs_buckets), %r11;
-        movq    %r11, 0(%r15); /* next ptr */
-        movq    %r15, Caml_state(gc_regs_buckets);
-        SWITCH_OCAML_TO_C
-        LEA_VAR(caml_exn_Stack_overflow, %rdi)
-        C_call  (GCALL(caml_raise_async))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_realloc_stack))
 
-FUNCTION(G(caml_call_gc))
-CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-LBL(caml_call_gc):
-        SAVE_ALL_REGS
-        movq    %r15, Caml_state(gc_regs)
-        TSAN_ENTER_FUNCTION(0)
-        SWITCH_OCAML_TO_C
-        C_call (GCALL(caml_garbage_collection))
-        SWITCH_C_TO_OCAML
-        TSAN_EXIT_FUNCTION
-        movq    Caml_state(gc_regs), %r15
-        RESTORE_ALL_REGS
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_gc))
+Make_call_realloc_stack(, XMM)
+Make_call_realloc_stack(_avx, YMM)
+Make_call_realloc_stack(_avx512, ZMM)
+
+#define Make_call_gc(suffix, simd)                   \
+    FUNCTION(G(caml_call_gc##suffix)) ;              \
+    CFI_STARTPROC                     ;              \
+        CFI_SIGNAL_FRAME;                            \
+        ENTER_FUNCTION;                              \
+LBL(caml_call_gc ## suffix):                         \
+        SAVE_ALL_REGS(simd);                         \
+        movq    %r15, Caml_state(gc_regs);           \
+        TSAN_ENTER_FUNCTION(0);                      \
+        SWITCH_OCAML_TO_C;                           \
+        C_call (GCALL(caml_garbage_collection));     \
+        SWITCH_C_TO_OCAML;                           \
+        TSAN_EXIT_FUNCTION;                          \
+        movq    Caml_state(gc_regs), %r15;           \
+        RESTORE_ALL_REGS(simd);                      \
+        LEAVE_FUNCTION;                              \
+        ret;                                         \
+    CFI_ENDPROC                 ;                    \
+    ENDFUNCTION(G(caml_call_gc ## suffix))
+
+Make_call_gc(, XMM)
+Make_call_gc(_avx, YMM)
+Make_call_gc(_avx512, ZMM)
 
 FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
-        SAVE_ALL_REGS
-        movq    %r15, Caml_state(gc_regs)
         /* We assume that we are always on the OCaml stack at this point.
            The SIGSEGV handler doesn't actually check that the faulting
            address lies in OCaml code, so it seems theoretically possible
@@ -698,62 +709,52 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
 
-FUNCTION(G(caml_alloc1))
-CFI_STARTPROC
-        ENTER_FUNCTION
-        subq    $16, %r15
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc)
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc1))
+#define r15_sub_words(n) subq $8+8*n, %r15
+#define r15_sub_1        r15_sub_words(1)
+#define r15_sub_2        r15_sub_words(2)
+#define r15_sub_3        r15_sub_words(3)
+#define r15_sub_N        /* do nothing */
 
-FUNCTION(G(caml_alloc2))
-CFI_STARTPROC
-        ENTER_FUNCTION
-        subq    $24, %r15
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc)
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc2))
+#define Make_alloc_fun(base_name, words, simd) \
+FUNCTION(G(base_name ## simd))                 \
+CFI_STARTPROC;                                 \
+        ENTER_FUNCTION;                        \
+        r15_sub_ ## words ;                    \
+        cmpq    Caml_state(young_limit), %r15; \
+        jb      LBL(caml_call_gc ## simd);     \
+        LEAVE_FUNCTION;                        \
+        ret;                                   \
+CFI_ENDPROC ;                                  \
+ENDFUNCTION(G(base_name ## simd)) ;
 
-FUNCTION(G(caml_alloc3))
-CFI_STARTPROC
-        ENTER_FUNCTION
-        subq    $32, %r15
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc)
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc3))
+#define Make_alloc_funs(words) \
+Make_alloc_fun(caml_alloc ## words, words,) \
+Make_alloc_fun(caml_alloc ## words, words, _avx) \
+Make_alloc_fun(caml_alloc ## words, words, _avx512)
 
-FUNCTION(G(caml_allocN))
-CFI_STARTPROC
-        ENTER_FUNCTION
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc)
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_allocN))
+Make_alloc_funs(1) /* caml_alloc1* */
+Make_alloc_funs(2) /* caml_alloc2* */
+Make_alloc_funs(3) /* caml_alloc3* */
+Make_alloc_funs(N) /* caml_allocN* */
 
-FUNCTION(G(caml_call_local_realloc))
-CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-        SAVE_ALL_REGS
-        SWITCH_OCAML_TO_C
-        C_call  (GCALL(caml_local_realloc))
-        SWITCH_C_TO_OCAML
-        RESTORE_ALL_REGS
-        LEAVE_FUNCTION
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_local_realloc))
+#define Make_call_local_realloc(suffix, simd)        \
+    FUNCTION(G(caml_call_local_realloc ## suffix)) ; \
+    CFI_STARTPROC               ;                    \
+        CFI_SIGNAL_FRAME;                            \
+        ENTER_FUNCTION;                              \
+        SAVE_ALL_REGS(simd);                         \
+        SWITCH_OCAML_TO_C;                           \
+        C_call  (GCALL(caml_local_realloc));         \
+        SWITCH_C_TO_OCAML;                           \
+        RESTORE_ALL_REGS(simd);                      \
+        LEAVE_FUNCTION;                              \
+        ret;                                         \
+   CFI_ENDPROC                  ;                    \
+   ENDFUNCTION(G(caml_call_local_realloc ## suffix))
+
+Make_call_local_realloc(, XMM)
+Make_call_local_realloc(_avx, YMM)
+Make_call_local_realloc(_avx512, ZMM)
 
 /******************************************************************************/
 /* Call a C function from OCaml */
@@ -822,64 +823,81 @@ LBL(caml_c_call):
 CFI_ENDPROC
 ENDFUNCTION(G(caml_c_call))
 
-FUNCTION(G(caml_c_call_stack_args))
-CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-    /* Arguments:
-        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9
-        C function          : %rax
-        C stack args        : begin=%r13 end=%r12 */
-    /* Switch from OCaml to C */
-        SWITCH_OCAML_TO_C
-    /* Make the alloc ptr available to the C code */
-        movq    %r15, Caml_state(young_ptr)
-    /* Copy the arguments and call */
-        C_call  (GCALL(caml_c_call_copy_stack_args))
-    /* Prepare for return to OCaml */
-        movq    Caml_state(young_ptr), %r15
-    /* Load ocaml stack and restore global variables */
-        SWITCH_C_TO_OCAML
-    /* Return to OCaml caller */
-        LEAVE_FUNCTION
-        RET_FROM_C_CALL
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_stack_args))
+#if defined(SYS_mingw64) || defined (SYS_cygwin)
+/* Allocate the shadow store on Windows (the c_stack_link store was used \
+   in calling caml_c_call_copy_stack_args) */
+#define SHADOW_STORE    subq $32, %rsp;
+#else
+#define SHADOW_STORE
+#endif
+
+#define copy_stack_correct_rsp        /* nothing */
+#define copy_stack_correct_rsp_avx    andq $-32, %rsp
+#define copy_stack_correct_rsp_avx512 andq $-64, %rsp
 
 /* To correctly maintain frame pointers during stack reallocation,
    the runtime assumes that the caml_c_call stub does not push
    anything to the stack before the first frame pointer on the C stack.
    To guarantee this when stack arguments are used, the actual pushing
-   of arguments is done by this separate function */
-FUNCTION(G(caml_c_call_copy_stack_args))
-CFI_STARTPROC
-    /* Set up a frame pointer even without WITH_FRAME_POINTERS,
-       which we use to pop an unknown number of arguments later */
-        pushq   %rbp; CFI_ADJUST(8)
-        movq    %rsp, %rbp
-        CFI_DEF_CFA_REGISTER(DW_REG_rbp)
-    /* Copy arguments from OCaml to C stack */
-LBL(105):
-        subq    $8, %r12
-        cmpq    %r13,%r12
-        jb      LBL(106)
-        push    (%r12)
-        jmp     LBL(105)
-LBL(106):
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-    /* Allocate the shadow store on Windows (the c_stack_link store was used
-       in calling caml_c_call_copy_stack_args) */
-        subq    $32, %rsp
-#endif
-    /* Call the function (address in %rax) */
-        C_call  (*%rax)
-    /* Pop arguments back off the stack */
-        movq    %rbp, %rsp
-        CFI_DEF_CFA_REGISTER(DW_REG_rsp)
-        popq    %rbp; CFI_ADJUST(-8)
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_copy_stack_args))
+   of arguments is done by these separate functions */
+
+#define Make_c_call_stack_args(suffix) \
+    FUNCTION(G(caml_c_call_copy_stack_args ## suffix)) ;                \
+    CFI_STARTPROC                                      ;                \
+    /* Set up a frame pointer even without WITH_FRAME_POINTERS,         \
+       which we use to pop an unknown number of arguments later */      \
+        pushq   %rbp; CFI_ADJUST(8);                                    \
+        movq    %rsp, %rbp;                                             \
+        CFI_DEF_CFA_REGISTER(DW_REG_rbp);                               \
+    /* Copy arguments from OCaml to C stack */                          \
+        cmpq   %r13, %r12;                                              \
+        je      1f       ;                                              \
+        copy_stack_correct_rsp ## suffix;                               \
+0:                                                                      \
+        subq    $8, %r12;                                               \
+        cmpq    %r13, %r12;                                             \
+        jb      1f        ;                                             \
+        push    (%r12);                                                 \
+        jmp     0b    ;                                                 \
+1:                                                                      \
+        SHADOW_STORE;                                                   \
+    /* Call the function (address in %rax) */                           \
+        C_call  (*%rax);                                                \
+    /* Pop arguments back off the stack */                              \
+        movq    %rbp, %rsp;                                             \
+        CFI_DEF_CFA_REGISTER(DW_REG_rsp);                               \
+        popq    %rbp; CFI_ADJUST(-8);                                   \
+        ret         ;                                                   \
+    CFI_ENDPROC                 ;                                       \
+    ENDFUNCTION(G(caml_c_call_copy_stack_args ## suffix)) ;             \
+                                                                        \
+    FUNCTION(G(caml_c_call_stack_args ## suffix)) ;                     \
+    CFI_STARTPROC                       ;                               \
+        CFI_SIGNAL_FRAME;                                               \
+        ENTER_FUNCTION;                                                 \
+    /* Arguments:                                                       \
+        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9      \
+        C function          : %rax                                      \
+        C stack args        : begin=%r13 end=%r12 */                    \
+    /* Switch from OCaml to C */                                        \
+        SWITCH_OCAML_TO_C;                                              \
+    /* Make the alloc ptr available to the C code */                    \
+        movq    %r15, Caml_state(young_ptr);                            \
+    /* Copy the arguments and call */                                   \
+        C_call  (GCALL(caml_c_call_copy_stack_args ## suffix));         \
+    /* Prepare for return to OCaml */                                   \
+        movq    Caml_state(young_ptr), %r15;                            \
+    /* Load ocaml stack and restore global variables */                 \
+        SWITCH_C_TO_OCAML;                                              \
+    /* Return to OCaml caller */                                        \
+        LEAVE_FUNCTION;                                                 \
+        RET_FROM_C_CALL         ;                                       \
+    CFI_ENDPROC                 ;                                       \
+    ENDFUNCTION(G(caml_c_call_stack_args ## suffix))
+
+Make_c_call_stack_args()
+Make_c_call_stack_args(_avx)
+Make_c_call_stack_args(_avx512)
 
 /******************************************************************************/
 /* Start the OCaml program */
@@ -888,7 +906,7 @@ ENDFUNCTION(G(caml_c_call_copy_stack_args))
 FUNCTION(G(caml_start_program))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
-    /* Save callee-save registers */
+    /* Save callee-save and registers */
         PUSH_CALLEE_SAVE_REGS
 #if defined(WITH_THREAD_SANITIZER)
     /* We can't use the TSAN_ENTER_FUNCTION macro as it assumes an OCaml stack,

@@ -152,6 +152,7 @@ module Exist_pair = struct
     | "layouts_beta" -> Some (Pair (Layouts, Beta))
     | "simd" -> Some (Pair (SIMD, Stable))
     | "simd_beta" -> Some (Pair (SIMD, Beta))
+    | "simd_alpha" -> Some (Pair (SIMD, Alpha))
     | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
     | "small_numbers" -> Some (Pair (Small_numbers, Stable))
     | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))

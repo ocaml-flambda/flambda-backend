@@ -18,9 +18,9 @@
 (foreign_library
  (archive_name stubs)
  (language c)
- (names stubs)
+ (names stubs stubs256)
  (flags
-  (:standard -msse4.2))
+  (:standard -mavx2))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
 
 ; Tests with external assembler
@@ -29,6 +29,8 @@
  (names
   basic
   basic_u
+  basic256
+  basic256_u
   ops
   ops_u
   arrays
@@ -36,10 +38,13 @@
   scalar_ops
   consts
   consts_u
-  callback)
+  callback
+  callback256)
  (modules
   basic
   basic_u
+  basic256
+  basic256_u
   ops
   ops_u
   arrays
@@ -47,9 +52,12 @@
   scalar_ops
   consts
   consts_u
-  callback)
+  callback
+  callback256)
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
- (foreign_archives stubs))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -57,6 +65,8 @@
  (targets
   basic.out
   basic_u.out
+  basic256.out
+  basic256_u.out
   ops.out
   ops_u.out
   arrays.out
@@ -64,17 +74,21 @@
   scalar_ops.out
   consts.out
   consts_u.out
-  callback.out)
+  callback.out
+  callback256.out)
  (deps
   basic.exe
   basic_u.exe
+  basic256.exe
+  basic256_u.exe
   ops.exe
   arrays.exe
   arrays_u.exe
   scalar_ops.exe
   consts.exe
   consts_u.exe
-  callback.exe)
+  callback.exe
+  callback256.exe)
  (action
   (progn
    (with-outputs-to
@@ -83,6 +97,12 @@
    (with-outputs-to
     basic_u.out
     (run ./basic_u.exe))
+   (with-outputs-to
+    basic256.out
+    (run ./basic256.exe))
+   (with-outputs-to
+    basic256_u.out
+    (run ./basic256_u.exe))
    (with-outputs-to
     ops.out
     (run ./ops.exe))
@@ -106,7 +126,10 @@
     (run ./consts_u.exe))
    (with-outputs-to
     callback.out
-    (run ./callback.exe)))))
+    (run ./callback.exe))
+   (with-outputs-to
+    callback256.out
+    (run ./callback256.exe)))))
 
 (rule
  (alias runtest)
@@ -118,6 +141,8 @@
   (progn
    (diff empty.expected basic.out)
    (diff empty.expected basic_u.out)
+   (diff empty.expected basic256.out)
+   (diff empty.expected basic256_u.out)
    (diff empty.expected ops.out)
    (diff empty.expected ops_u.out)
    (diff empty.expected arrays.out)
@@ -125,7 +150,8 @@
    (diff empty.expected scalar_ops.out)
    (diff empty.expected consts.out)
    (diff empty.expected consts_u.out)
-   (diff empty.expected callback.out))))
+   (diff empty.expected callback.out)
+   (diff empty.expected callback256.out))))
 
 ; Tests with nodynlink
 
@@ -133,6 +159,8 @@
  (targets
   basic_nodynlink.ml
   basic_u_nodynlink.ml
+  basic256_nodynlink.ml
+  basic256_u_nodynlink.ml
   ops_nodynlink.ml
   ops_u_nodynlink.ml
   consts_nodynlink.ml
@@ -140,10 +168,13 @@
   arrays_nodynlink.ml
   arrays_u_nodynlink.ml
   scalar_ops_nodynlink.ml
-  callback_nodynlink.ml)
+  callback_nodynlink.ml
+  callback256_nodynlink.ml)
  (deps
   basic.ml
   basic_u.ml
+  basic256.ml
+  basic256_u.ml
   ops.ml
   ops_u.ml
   consts.ml
@@ -151,11 +182,14 @@
   arrays.ml
   arrays_u.ml
   scalar_ops.ml
-  callback.ml)
+  callback.ml
+  callback256.ml)
  (action
   (progn
    (copy basic.ml basic_nodynlink.ml)
    (copy basic_u.ml basic_u_nodynlink.ml)
+   (copy basic256.ml basic256_nodynlink.ml)
+   (copy basic256_u.ml basic256_u_nodynlink.ml)
    (copy ops.ml ops_nodynlink.ml)
    (copy ops_u.ml ops_u_nodynlink.ml)
    (copy consts.ml consts_nodynlink.ml)
@@ -163,12 +197,15 @@
    (copy arrays.ml arrays_nodynlink.ml)
    (copy arrays_u.ml arrays_u_nodynlink.ml)
    (copy scalar_ops.ml scalar_ops_nodynlink.ml)
-   (copy callback.ml callback_nodynlink.ml))))
+   (copy callback.ml callback_nodynlink.ml)
+   (copy callback256.ml callback256_nodynlink.ml))))
 
 (executables
  (names
   basic_nodynlink
   basic_u_nodynlink
+  basic256_nodynlink
+  basic256_u_nodynlink
   ops_nodynlink
   ops_u_nodynlink
   consts_nodynlink
@@ -176,10 +213,13 @@
   arrays_nodynlink
   arrays_u_nodynlink
   scalar_ops_nodynlink
-  callback_nodynlink)
+  callback_nodynlink
+  callback256_nodynlink)
  (modules
   basic_nodynlink
   basic_u_nodynlink
+  basic256_nodynlink
+  basic256_u_nodynlink
   ops_nodynlink
   ops_u_nodynlink
   consts_nodynlink
@@ -187,11 +227,12 @@
   arrays_nodynlink
   arrays_u_nodynlink
   scalar_ops_nodynlink
-  callback_nodynlink)
+  callback_nodynlink
+  callback256_nodynlink)
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -nodynlink)))
+  (:standard -nodynlink -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -199,6 +240,8 @@
  (targets
   basic_nodynlink.out
   basic_u_nodynlink.out
+  basic256_nodynlink.out
+  basic256_u_nodynlink.out
   ops_nodynlink.out
   ops_u_nodynlink.out
   consts_nodynlink.out
@@ -206,16 +249,22 @@
   arrays_nodynlink.out
   arrays_u_nodynlink.out
   scalar_ops_nodynlink.out
-  callback_nodynlink.out)
+  callback_nodynlink.out
+  callback256_nodynlink.out)
  (deps
   basic_nodynlink.exe
+  basic_u_nodynlink.exe
+  basic256_nodynlink.exe
+  basic256_u_nodynlink.exe
   ops_nodynlink.exe
+  ops_u_nodynlink.exe
   consts_nodynlink.exe
   consts_u_nodynlink.exe
   arrays_nodynlink.exe
   arrays_u_nodynlink.exe
   scalar_ops_nodynlink.exe
-  callback_nodynlink.exe)
+  callback_nodynlink.exe
+  callback256_nodynlink.exe)
  (action
   (progn
    (with-outputs-to
@@ -224,6 +273,12 @@
    (with-outputs-to
     basic_u_nodynlink.out
     (run ./basic_u_nodynlink.exe))
+   (with-outputs-to
+    basic256_nodynlink.out
+    (run ./basic256_nodynlink.exe))
+   (with-outputs-to
+    basic256_u_nodynlink.out
+    (run ./basic256_u_nodynlink.exe))
    (with-outputs-to
     ops_nodynlink.out
     (run ./ops_nodynlink.exe))
@@ -247,7 +302,10 @@
     (run ./consts_u_nodynlink.exe))
    (with-outputs-to
     callback_nodynlink.out
-    (run ./callback_nodynlink.exe)))))
+    (run ./callback_nodynlink.exe))
+   (with-outputs-to
+    callback256_nodynlink.out
+    (run ./callback256_nodynlink.exe)))))
 
 (rule
  (alias runtest)
@@ -259,6 +317,8 @@
   (progn
    (diff empty.expected basic_nodynlink.out)
    (diff empty.expected basic_u_nodynlink.out)
+   (diff empty.expected basic256_nodynlink.out)
+   (diff empty.expected basic256_u_nodynlink.out)
    (diff empty.expected ops_nodynlink.out)
    (diff empty.expected ops_u_nodynlink.out)
    (diff empty.expected arrays_nodynlink.out)
@@ -266,21 +326,26 @@
    (diff empty.expected scalar_ops_nodynlink.out)
    (diff empty.expected consts_nodynlink.out)
    (diff empty.expected consts_u_nodynlink.out)
-   (diff empty.expected callback_nodynlink.out))))
+   (diff empty.expected callback_nodynlink.out)
+   (diff empty.expected callback256_nodynlink.out))))
 
 ; Tests with probes / internal assembler - not supported on macOS
 
-(executable
- (name probes)
- (modules probes)
+(executables
+ (names probes probes256)
  (enabled_if
   (<> %{system} macosx))
+ (modules probes probes256)
+ (ocamlopt_flags
+  (:standard -extension simd_beta))
  (foreign_archives stubs))
 
 (rule
  (targets
   basic_internal.ml
   basic_u_internal.ml
+  basic256_internal.ml
+  basic256_u_internal.ml
   ops_internal.ml
   ops_u_internal.ml
   consts_internal.ml
@@ -288,20 +353,26 @@
   arrays_internal.ml
   arrays_u_internal.ml
   scalar_ops_internal.ml
-  callback_internal.ml)
+  callback_internal.ml
+  callback256_internal.ml)
  (deps
   basic.ml
   basic_u.ml
+  basic256.ml
+  basic256_u.ml
   ops.ml
   ops_u.ml
   consts.ml
   consts_u.ml
   scalar_ops.ml
-  callback.ml)
+  callback.ml
+  callback256.ml)
  (action
   (progn
    (copy basic.ml basic_internal.ml)
    (copy basic_u.ml basic_u_internal.ml)
+   (copy basic256.ml basic256_internal.ml)
+   (copy basic256_u.ml basic256_u_internal.ml)
    (copy ops.ml ops_internal.ml)
    (copy ops_u.ml ops_u_internal.ml)
    (copy consts.ml consts_internal.ml)
@@ -309,12 +380,15 @@
    (copy arrays.ml arrays_internal.ml)
    (copy arrays_u.ml arrays_u_internal.ml)
    (copy scalar_ops.ml scalar_ops_internal.ml)
-   (copy callback.ml callback_internal.ml))))
+   (copy callback.ml callback_internal.ml)
+   (copy callback256.ml callback256_internal.ml))))
 
 (executables
  (names
   basic_internal
   basic_u_internal
+  basic256_internal
+  basic256_u_internal
   ops_internal
   ops_u_internal
   consts_internal
@@ -322,10 +396,13 @@
   arrays_internal
   arrays_u_internal
   scalar_ops_internal
-  callback_internal)
+  callback_internal
+  callback256_internal)
  (modules
   basic_internal
   basic_u_internal
+  basic256_internal
+  basic256_u_internal
   ops_internal
   ops_u_internal
   consts_internal
@@ -333,13 +410,14 @@
   arrays_internal
   arrays_u_internal
   scalar_ops_internal
-  callback_internal)
+  callback_internal
+  callback256_internal)
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -internal-assembler)))
+  (:standard -internal-assembler -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -348,8 +426,11 @@
    (<> %{system} macosx)))
  (targets
   probes.out
+  probes256.out
   basic_internal.out
   basic_u_internal.out
+  basic256_internal.out
+  basic256_u_internal.out
   ops_internal.out
   ops_u_internal.out
   consts_internal.out
@@ -357,22 +438,38 @@
   arrays_internal.out
   arrays_u_internal.out
   scalar_ops_internal.out
-  callback_internal.out)
+  callback_internal.out
+  callback256_internal.out)
  (deps
   probes.exe
+  probes256.exe
   basic_internal.exe
+  basic_u_internal.exe
+  basic256_internal.exe
+  basic256_u_internal.exe
   ops_internal.exe
+  ops_u_internal.exe
   consts_internal.exe
   consts_u_internal.exe
   arrays_internal.exe
   arrays_u_internal.exe
   scalar_ops_internal.exe
-  callback_internal.exe)
+  callback_internal.exe
+  callback256_internal.exe)
  (action
   (progn
    (with-outputs-to
     probes.out
     (run ./probes.exe))
+   (with-outputs-to
+    probes256.out
+    (run ./probes256.exe))
+   (with-outputs-to
+    basic256_internal.out
+    (run ./basic256_internal.exe))
+   (with-outputs-to
+    basic256_u_internal.out
+    (run ./basic256_u_internal.exe))
    (with-outputs-to
     basic_internal.out
     (run ./basic_internal.exe))
@@ -402,7 +499,10 @@
     (run ./consts_u_internal.exe))
    (with-outputs-to
     callback_internal.out
-    (run ./callback_internal.exe)))))
+    (run ./callback_internal.exe))
+   (with-outputs-to
+    callback256_internal.out
+    (run ./callback256_internal.exe)))))
 
 (rule
  (alias runtest)
@@ -414,8 +514,11 @@
  (action
   (progn
    (diff empty.expected probes.out)
+   (diff empty.expected probes256.out)
    (diff empty.expected basic_internal.out)
    (diff empty.expected basic_u_internal.out)
+   (diff empty.expected basic256_internal.out)
+   (diff empty.expected basic256_u_internal.out)
    (diff empty.expected ops_internal.out)
    (diff empty.expected ops_u_internal.out)
    (diff empty.expected arrays_internal.out)
@@ -423,4 +526,5 @@
    (diff empty.expected scalar_ops_internal.out)
    (diff empty.expected consts_internal.out)
    (diff empty.expected consts_u_internal.out)
-   (diff empty.expected callback_internal.out))))
+   (diff empty.expected callback_internal.out)
+   (diff empty.expected callback256_internal.out))))

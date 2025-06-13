@@ -2,7 +2,7 @@
  include stdlib_stable;
  include stdlib_upstream_compatible;
  modules = "stubs.c";
- flags = "-extension layouts_beta -extension simd_beta";
+ ocamlopt_flags = "-extension simd_beta -cc '${cc} -mavx' -ccopt '${cflags}'";
  flambda2;
  arch_amd64;
  native;
