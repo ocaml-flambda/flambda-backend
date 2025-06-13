@@ -476,7 +476,8 @@ let let_mutable_loop () =
   for i = 0 to 10 do exclave_
     x <- stack_ (i :: x)
   done;
-  ignore_local x
+  let () = ignore_local x in
+  ()
 
 let run name f x =
   let prebefore = Gc.allocated_bytes () in

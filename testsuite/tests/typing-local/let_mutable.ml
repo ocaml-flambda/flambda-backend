@@ -194,15 +194,11 @@ let foo5_1 y =  (* Assignment of local allowed in same scope *)
   x <- (local_ (y :: x));
   match x with
   | [] -> assert false
-  | (x :: xs) -> x
+  | (x :: xs) -> 42
 
 let () = assert Int.(equal 42 (foo5_1 42))
 [%%expect{|
-Line 7, characters 17-18:
-7 |   | (x :: xs) -> x
-                     ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
+val foo5_1 : 'a -> int = <fun>
 |}]
 
 let foo5_2 y =  (* Assignment of local works in _local_ for loop body region *)
@@ -212,17 +208,11 @@ let foo5_2 y =  (* Assignment of local works in _local_ for loop body region *)
   done;
   match x with
   | [] -> assert false
-  | (x :: xs) -> x
+  | (x :: xs) -> 42
 
 let () = assert Int.(equal 42 (foo5_2 42))
 [%%expect{|
 val foo5_2 : int -> int = <fun>
-|}, Principal{|
-Line 8, characters 17-18:
-8 |   | (x :: xs) -> x
-                     ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let foo5_3 y = (* Assignment of local works in _local_ while body region *)
@@ -231,31 +221,19 @@ let foo5_3 y = (* Assignment of local works in _local_ while body region *)
   while !i <= 10 do exclave_
     x <- (local_ (x + !i));
     i := !i + 1;
-  done; x
+  done; (x : int)
 [%%expect{|
 val foo5_3 : int -> int = <fun>
-|}, Principal{|
-Line 7, characters 8-9:
-7 |   done; x
-            ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let foo5_4 y = (* Assign of local works in _local_ while cond region *)
   let mutable x = y in
   while exclave_ x <- (local_ (x + 1)); x <= 100 do
     x <- x + x
-  done; x
+  done; (x : int)
 
 [%%expect{|
 val foo5_4 : int -> int = <fun>
-|}, Principal{|
-Line 5, characters 8-9:
-5 |   done; x
-            ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 (* Test 11: binding a mutable variable shouldn't be simplified away *)
