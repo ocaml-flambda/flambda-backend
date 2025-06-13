@@ -141,6 +141,7 @@ type error =
   | Unsafe_mode_crossing_on_invalid_type_kind
   | Illegal_baggage of jkind_l
   | No_unboxed_version of Path.t
+  | Atomic_field_must_be_mutable of string
 
 open Typedtree
 
@@ -481,12 +482,18 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
           pld_type=arg;pld_loc=loc;pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
+         let is_atomic = Builtin_attributes.has_atomic attrs in
          let mut : mutability =
-          match mut with
-          | Immutable -> Immutable
-          | Mutable ->
+          match mut, is_atomic with
+          | Immutable, false -> Immutable
+          | Immutable, true ->
+            raise (Error (loc, Atomic_field_must_be_mutable name.txt))
+          | Mutable, is_atomic ->
               match record_form with
-              | Legacy -> Mutable Mode.Alloc.Comonadic.Const.legacy
+              | Legacy -> Mutable {
+                modal_upper_bound = Mode.Alloc.Comonadic.Const.legacy;
+                atomic = if is_atomic then Atomic else Nonatomic
+              }
               | Unboxed_product -> raise(Error(loc, Unboxed_mutable_label))
          in
          let modalities =
@@ -494,6 +501,13 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
+         let is_atomic = Builtin_attributes.has_atomic attrs in
+         begin match is_atomic, mut with
+         | true, Mutable _
+         | false, _  -> ()
+         | true, Immutable ->
+           raise (Error (loc, Atomic_field_must_be_mutable name.txt));
+         end;
          {ld_id = Ident.create_local name.txt;
           ld_name = name;
           ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
@@ -4730,6 +4744,10 @@ let report_error ppf = function
   | No_unboxed_version p ->
       fprintf ppf "@[The type %a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
+  | Atomic_field_must_be_mutable name ->
+      fprintf ppf
+        "@[The label %a must be mutable to be declared atomic.@]"
+        Style.inline_code name
 
 let () =
   Location.register_error_of_exn
