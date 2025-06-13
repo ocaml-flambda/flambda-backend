@@ -337,6 +337,7 @@ type primitive =
   | Pbox_float of boxed_float * locality_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
+  | Punbox_unit
   | Punbox_vector of boxed_vector
   | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63

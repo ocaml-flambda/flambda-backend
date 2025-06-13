@@ -612,12 +612,11 @@ let [@warning "-10"] exnmatch1 (V v) =
 
 let _ = assert ((exnmatch1 vh) = 1);;
 [%%expect{|
-Lines 3-5, characters 4-46:
-3 | ....{v = (if true then raise (Ex1 42); v)};
-4 |     if true then raise (Ex2 "test");
-5 |     {v = ((if true then raise (Ex3 true)); v)}
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       void_rec. Please report this error to the Jane Street compilers team.
+Line 7, characters 4-7:
+7 |   | {v} -> 0
+        ^^^
+Error: Void layout detected in translation:
+       Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -643,12 +642,11 @@ let [@warning "-10"] exnmatch2 (V v) =
 
 let _ = assert ((exnmatch2 vh) = 3);;
 [%%expect{|
-Lines 3-5, characters 4-46:
-3 | ....{v = v};
-4 |     if true then raise (Ex2 "test");
-5 |     {v = ((if true then raise (Ex3 true)); v)}
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       void_rec. Please report this error to the Jane Street compilers team.
+Line 7, characters 4-7:
+7 |   | {v} -> 0
+        ^^^
+Error: Void layout detected in translation:
+       Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -673,11 +671,11 @@ let [@warning "-10"] exnmatch3 (V v) =
 
 let _ = assert ((exnmatch3 vh) = 5);;
 [%%expect{|
-Lines 3-4, characters 4-46:
-3 | ....{v = v};
-4 |     {v = ((if true then raise (Ex3 true)); v)}
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       void_rec. Please report this error to the Jane Street compilers team.
+Line 6, characters 4-7:
+6 |   | {v} -> 0
+        ^^^
+Error: Void layout detected in translation:
+       Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -702,11 +700,11 @@ let [@warning "-10"] exnmatch4 (V v) =
 
 let _ = assert ((exnmatch4 vh) = 0);;
 [%%expect{|
-Lines 3-4, characters 4-11:
-3 | ....{v = v};
-4 |     {v = v}
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       void_rec. Please report this error to the Jane Street compilers team.
+Line 6, characters 4-7:
+6 |   | {v} -> 0
+        ^^^
+Error: Void layout detected in translation:
+       Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
