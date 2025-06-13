@@ -678,7 +678,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let shape =
             Lambda.transl_mixed_product_shape_for_read
               ~get_value_kind:(fun i ->
-                if i <> lbl.lbl_num then Lambda.generic_value
+                if i <> lbl.lbl_pos then Lambda.generic_value
                 else
                   let pointerness, nullable = maybe_pointer e in
                   let raw_kind = match pointerness with
@@ -687,7 +687,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   in
                   Lambda.{ raw_kind; nullable })
               ~get_mode:(fun i ->
-                if i <> lbl.lbl_num then Lambda.alloc_heap
+                if i <> lbl.lbl_pos then Lambda.alloc_heap
                 else
                   match float with
                     | Boxing (mode, _) -> transl_alloc_mode mode
@@ -712,7 +712,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         (* erase singleton unboxed records before lambda *)
         targ
       else
-        Lprim (Punboxed_product_field (lbl.lbl_num, layouts), [targ],
+        Lprim (Punboxed_product_field (lbl.lbl_pos, layouts), [targ],
                of_location ~scopes e.exp_loc)
     end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
@@ -746,7 +746,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let shape =
             Lambda.transl_mixed_product_shape
               ~get_value_kind:(fun i ->
-                if i <> lbl.lbl_num then Lambda.generic_value
+                if i <> lbl.lbl_pos then Lambda.generic_value
                 else
                   let pointerness, nullable =
                     maybe_pointer newval
@@ -1954,7 +1954,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 let shape =
                   Lambda.transl_mixed_product_shape
                     ~get_value_kind:(fun i ->
-                      if i <> lbl.lbl_num then Lambda.generic_value
+                      if i <> lbl.lbl_pos then Lambda.generic_value
                       else
                         let pointerness, nullable =
                           maybe_pointer expr
@@ -2031,7 +2031,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                    let shape =
                      Lambda.transl_mixed_product_shape_for_read
                        ~get_value_kind:(fun i ->
-                         if i <> lbl.lbl_num then Lambda.generic_value
+                         if i <> lbl.lbl_pos then Lambda.generic_value
                          else
                            let pointerness, nullable =
                              maybe_pointer_type env typ

@@ -162,7 +162,7 @@ let all_record_args lbls =
             (mknoloc (Longident.Lident "?temp?"), lbl, Patterns.omega))
           lbl_all
       in
-      List.iter (fun ((_, lbl, _) as x) -> t.(lbl.lbl_num) <- x) lbls;
+      List.iter (fun ((_, lbl, _) as x) -> t.(lbl.lbl_pos) <- x) lbls;
       Array.to_list t
 
 let expand_record_head h =
