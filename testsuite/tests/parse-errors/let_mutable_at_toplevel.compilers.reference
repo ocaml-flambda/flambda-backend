@@ -1,0 +1,7 @@
+
+
+Line 6, characters 0-18:
+6 | let mutable x = 10
+    ^^^^^^^^^^^^^^^^^^
+Error: Syntax error: Mutable let bindings are not allowed at the structure level.
+

@@ -26,6 +26,11 @@ let f ([%nested_pat_constraint]) = ();;
 
 let f (_ : [%alias_with_too_many_nones]) = ();;
 
+let _ = [%mutable_let_rec];;
+let _ = [%multiple_mutable_let];;
+let _ = [%mutable_let_ppat_tuple];;
+let _ = [%mutable_let_ppat_any];;
+
 (* TEST
  readonly_files = "illegal_ppx.ml";
  setup-ocamlc.byte-build-env;

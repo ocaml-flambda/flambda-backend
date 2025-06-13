@@ -3056,6 +3056,8 @@ module Format_history = struct
          representable at call sites)"
     | Peek_or_poke ->
       fprintf ppf "it's the type being used for a peek or poke primitive"
+    | Mutable_var_assignment ->
+      fprintf ppf "it's the type of a mutable variable used in an assignment"
 
   let format_concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -3855,6 +3857,7 @@ module Debug_printers = struct
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
     | Unboxed_tuple_element -> fprintf ppf "Unboxed_tuple_element"
     | Peek_or_poke -> fprintf ppf "Peek_or_poke"
+    | Mutable_var_assignment -> fprintf ppf "Mutable_var_assignment"
 
   let concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function

@@ -2138,6 +2138,12 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
       check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) body
     in
     UF.seq uf_vbs uf_body
+  | Texp_letmutable (vb, body) ->
+    let ext, uf_vbs = check_uniqueness_value_bindings ienv [vb] in
+    let uf_body =
+      check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) body
+    in
+    UF.seq uf_vbs uf_body
   | Texp_function { params; body; _ } ->
     let ienv, uf_params =
       List.fold_left_map
@@ -2325,7 +2331,9 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_send (e, _, _) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_new _ -> UF.unused
   | Texp_instvar _ -> UF.unused
+  | Texp_mutvar _ -> UF.unused
   | Texp_setinstvar (_, _, _, e) -> check_uniqueness_exp ~overwrite:None ienv e
+  | Texp_setmutvar (_, _, e) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_override (_, ls) ->
     UF.pars
       (List.map

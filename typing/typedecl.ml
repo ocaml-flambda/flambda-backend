@@ -486,7 +486,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
           | Immutable -> Immutable
           | Mutable ->
               match record_form with
-              | Legacy -> Mutable Mode.Alloc.Comonadic.Const.legacy
+              | Legacy -> Mutable Mode.Value.Comonadic.legacy
               | Unboxed_product -> raise(Error(loc, Unboxed_mutable_label))
          in
          let modalities =

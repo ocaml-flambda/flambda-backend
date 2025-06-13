@@ -277,7 +277,7 @@ and rw_exp iflag sexp =
 
   | Pexp_new _ -> ()
 
-  | Pexp_setinstvar (_, sarg) ->
+  | Pexp_setvar (_, sarg) ->
     rewrite_exp iflag sarg
 
   | Pexp_override l ->

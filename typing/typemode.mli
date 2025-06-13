@@ -17,6 +17,9 @@ val transl_modalities :
   Parsetree.modalities ->
   Mode.Modality.Value.Const.t
 
+val let_mutable_modalities :
+  Mode.Value.Comonadic.lr -> Mode.Modality.Value.Const.t
+
 val untransl_modality : Mode.Modality.t -> Parsetree.modality Location.loc
 
 (** Un-interpret modalities back to parsetree. Takes the mutability and

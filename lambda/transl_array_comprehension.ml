@@ -515,7 +515,7 @@ let iterator ~transl_exp ~scopes ~loc :
                        iter_arr_mut ),
                    [iter_arr.var; Lvar iter_ix],
                    loc ))
-              pattern body
+              Immutable pattern body
         }
     in
     mk_iterator, Array { iter_arr; iter_len }

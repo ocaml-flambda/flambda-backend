@@ -202,7 +202,6 @@ type shared_context =
   | For_loop
   | While_loop
   | Letop
-  | Closure
   | Comprehension
   | Class
   | Module
@@ -239,8 +238,8 @@ type lookup_error =
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
   | Unbound_cltype of Longident.t
-  | Unbound_instance_variable of string
-  | Not_an_instance_variable of string
+  | Unbound_settable_variable of string
+  | Not_a_settable_variable of string
   | Masked_instance_variable of Longident.t
   | Masked_self_variable of Longident.t
   | Masked_ancestor_variable of Longident.t
@@ -258,6 +257,9 @@ type lookup_error =
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
   | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
+  | Mutable_value_used_in_closure of
+      [`Escape of escaping_context | `Shared of shared_context | `Closure]
+
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -338,9 +340,12 @@ val lookup_all_labels_from_type:
   ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Path.t -> t ->
   ('rcd gen_label_description * (unit -> unit)) list
 
-val lookup_instance_variable:
-  ?use:bool -> loc:Location.t -> string -> t ->
-  Path.t * Asttypes.mutable_flag * string * type_expr
+type settable_variable =
+  | Instance_variable of Path.t * Asttypes.mutable_flag * string * type_expr
+  | Mutable_variable of Ident.t * Mode.Value.r * type_expr * Jkind.Sort.t
+
+val lookup_settable_variable:
+  ?use:bool -> loc:Location.t -> string -> t -> settable_variable
 
 val find_value_by_name:
   Longident.t -> t -> Path.t * value_description

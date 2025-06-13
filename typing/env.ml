@@ -361,7 +361,6 @@ type shared_context =
   | For_loop
   | While_loop
   | Letop
-  | Closure
   | Comprehension
   | Class
   | Module
@@ -825,8 +824,8 @@ type lookup_error =
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
   | Unbound_cltype of Longident.t
-  | Unbound_instance_variable of string
-  | Not_an_instance_variable of string
+  | Unbound_settable_variable of string
+  | Not_a_settable_variable of string
   | Masked_instance_variable of Longident.t
   | Masked_self_variable of Longident.t
   | Masked_ancestor_variable of Longident.t
@@ -845,6 +844,8 @@ type lookup_error =
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
   | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
+  | Mutable_value_used_in_closure of
+      [`Escape of escaping_context | `Shared of shared_context | `Closure]
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3343,9 +3344,49 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
           vmode
     ) vmode locks
 
+(** Take the parameter of [mutable(m0)] at declaration site,  *)
+let walk_locks_for_mutable_mode ~errors ~loc ~env  locks mode =
+  List.fold_left
+    (fun (mode : Mode.Value.r) lock ->
+      match lock with
+      | Region_lock ->
+          (* CR zqian: once we have finer regionality, remove this branch *)
+          (* First map [regional] to [global], then cap [local] to [regional] *)
+          let mode = mode |> Mode.value_to_alloc_r2g |> Mode.alloc_as_value in
+          Mode.Value.meet
+            [mode;
+             Mode.Value.max_with (Comonadic Areality)
+                                 (Mode.Regionality.regional)]
+      | Exclave_lock ->
+          (* If [m0] is [global], then inside the exclave we require new values
+          to be [global]. If [m0] is [regional], then we require the new values
+          to be [local]. If [m0] is [local], that would trigger type error
+          elsewhere, so what we return here doesn't matter. *)
+          mode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
+      | Escape_lock (Letop | Probe | Class | Module as ctx) ->
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure (`Escape ctx))
+      | Share_lock (Letop | Probe | Class | Module as ctx) ->
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure (`Shared ctx))
+      | Share_lock (For_loop | While_loop | Comprehension) ->
+          mode
+      | Closure_lock _ ->
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure `Closure)
+      | Unboxed_lock -> mode
+    ) mode locks
+
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (path, locks, Val_bound vda) ->
+      begin match vda with
+      | {vda_description={val_kind=Val_mut (m0, _); _}; _} ->
+          m0
+          |> mutable_mode |> Mode.Value.disallow_left
+          |> walk_locks_for_mutable_mode ~errors ~loc ~env locks
+          |> ignore
+      | _ -> () end;
       use_value ~use ~loc path vda;
       path, locks, vda
   | Ok (_, _, Val_unbound reason) ->
@@ -4086,27 +4127,46 @@ let lookup_all_labels_from_type ?(use=true) ~record_form ~loc usage ty_path env
   =
   lookup_all_labels_from_type ~use ~record_form ~loc usage ty_path env
 
-let lookup_instance_variable ?(use=true) ~loc name env =
+type settable_variable =
+  | Instance_variable of Path.t * Asttypes.mutable_flag * string * type_expr
+  | Mutable_variable of Ident.t * Mode.Value.r * type_expr * Jkind.Sort.t
+
+let lookup_settable_variable ?(use=true) ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
-  | Ok (path, _, Val_bound vda) -> begin
+  | Ok (path, locks, Val_bound vda) -> begin
       let desc = vda.vda_description in
-      match desc.val_kind with
-      | Val_ivar(mut, cl_num) ->
+      match desc.val_kind, path with
+      | Val_ivar(mut, cl_num), _ ->
           use_value ~use ~loc path vda;
-          path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type
-      | _ ->
-          lookup_error loc env (Not_an_instance_variable name)
+          Instance_variable
+            (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
+      | Val_mut (m0, sort), Pident id ->
+          let val_type = Subst.Lazy.force_type_expr desc.val_type in
+          let mode =
+            m0
+            |> mutable_mode |> Mode.Value.disallow_left
+            |> walk_locks_for_mutable_mode ~errors:true ~loc ~env locks
+            |> Mode.Modality.Value.Const.apply
+                (Typemode.let_mutable_modalities m0)
+          in
+          use_value ~use ~loc path vda;
+          Mutable_variable (id, mode, val_type, sort)
+      | Val_mut _, _ -> assert false
+      (* Unreachable because only [type_pat] creates mutable variables
+         and it checks that they are simple identifiers. *)
+      | ((Val_reg | Val_prim _ | Val_self _ | Val_anc _), _) ->
+          lookup_error loc env (Not_a_settable_variable name)
     end
   | Ok (_, _, Val_unbound Val_unbound_instance_variable) ->
       lookup_error loc env (Masked_instance_variable (Lident name))
   | Ok (_, _, Val_unbound Val_unbound_self) ->
-      lookup_error loc env (Not_an_instance_variable name)
+      lookup_error loc env (Not_a_settable_variable name)
   | Ok (_, _, Val_unbound Val_unbound_ancestor) ->
-      lookup_error loc env (Not_an_instance_variable name)
+      lookup_error loc env (Not_a_settable_variable name)
   | Ok (_, _, Val_unbound Val_unbound_ghost_recursive _) ->
-      lookup_error loc env (Unbound_instance_variable name)
+      lookup_error loc env (Unbound_settable_variable name)
   | Error _ ->
-      lookup_error loc env (Unbound_instance_variable name)
+      lookup_error loc env (Unbound_settable_variable name)
 
 (* Checking if a name is bound *)
 
@@ -4403,11 +4463,11 @@ let extract_modtypes path env =
   fold_modtypes (fun name _ _ acc -> name :: acc) path env []
 let extract_cltypes path env =
   fold_cltypes (fun name _ _ acc -> name :: acc) path env []
-let extract_instance_variables env =
+let extract_settable_variables env =
   fold_values
     (fun name _ descr _ acc ->
        match descr.val_kind with
-       | Val_ivar _ -> name :: acc
+       | Val_ivar _ | Val_mut _ -> name :: acc
        | _ -> acc) None env []
 
 let string_of_escaping_context : escaping_context -> string =
@@ -4422,7 +4482,6 @@ let string_of_shared_context : shared_context -> string =
   | For_loop -> "a for loop"
   | While_loop -> "a while loop"
   | Letop -> "a letop"
-  | Closure -> "a closure that is not once"
   | Comprehension -> "a comprehension"
   | Class -> "a class"
   | Module -> "a module"
@@ -4449,11 +4508,6 @@ let sharedness_hint ppf : shared_context -> _ = function
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \
           because it is defined in a class.@]"
-  | Closure ->
-    Format.fprintf ppf
-        "@[Hint: This identifier was defined outside of the current closure.@ \
-          Either this closure has to be once, or the identifier can be used only@ \
-          as aliased.@]"
   | Module ->
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \
@@ -4580,13 +4634,14 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "Unbound class type %a"
         (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_cltypes env lid
-  | Unbound_instance_variable s ->
-      fprintf ppf "Unbound instance variable %a" Style.inline_code s;
-      spellcheck_name ppf extract_instance_variables env s;
-  | Not_an_instance_variable s ->
-      fprintf ppf "The value %a is not an instance variable"
+  | Unbound_settable_variable s ->
+      fprintf ppf "Unbound instance variable or mutable variable %a"
         Style.inline_code s;
-      spellcheck_name ppf extract_instance_variables env s;
+      spellcheck_name ppf extract_settable_variables env s
+  | Not_a_settable_variable s ->
+      fprintf ppf "The value %a is not an instance variable or mutable variable"
+        Style.inline_code s;
+      spellcheck_name ppf extract_settable_variables env s
   | Masked_instance_variable lid ->
       fprintf ppf
         "The instance variable %a@ \
@@ -4711,6 +4766,15 @@ let report_lookup_error _loc env ppf = function
       end
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
+  | Mutable_value_used_in_closure ctx ->
+      let ctx =
+        match ctx with
+        | `Escape ctx -> string_of_escaping_context ctx
+        | `Shared ctx -> string_of_shared_context ctx
+        | `Closure -> "closure"
+      in
+      fprintf ppf
+        "@[Mutable variable cannot be used inside %s.@]" ctx
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

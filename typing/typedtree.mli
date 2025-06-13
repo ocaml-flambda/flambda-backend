@@ -322,6 +322,8 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
+  | Texp_letmutable of value_binding * expression
+        (** let mutable P = E in E' *)
   | Texp_function of
       { params : function_param list;
         body : function_body;
@@ -481,7 +483,9 @@ and expression_desc =
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
+  | Texp_mutvar of Ident.t loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
+  | Texp_setmutvar of Ident.t loc * Jkind.sort * expression
   | Texp_override of Path.t * (Ident.t * string loc * expression) list
   | Texp_letmodule of
       Ident.t option * string option loc * Types.module_presence * module_expr *
