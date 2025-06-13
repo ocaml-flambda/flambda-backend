@@ -23,7 +23,8 @@ This generates four functions: `id__float32`, `id__float64`, `id__bits32`, and
 ```ocaml
 let test x =
   [%test_result: float]
-    (Float_u.to_float ((id [@kind float64]) (Float_u.of_float x)))
+    (Float_u.to_float
+       ((id [@kind float64]) (Float_u.of_float x)))
     ~expect:x
 ;;
 ```
@@ -42,7 +43,7 @@ for the attached AST node:
 
 ```ocaml
 module T1 : sig
-  (* long-hand extension point in signature (notice colon) *)
+  (* long-hand signature extension (notice colon) *)
   [%%template:
   val id : ('a : k). 'a -> 'a
   [@@kind k = (float32, float64, bits32, bits64)]]
@@ -51,7 +52,7 @@ module T1 : sig
   val%template id : ('a : k). 'a -> 'a
   [@@kind k = (float32, float64, bits32, bits64)]
 end = struct
-  (* long-hand extension point in structure (notice no colon) *)
+  (* long-hand structure extension (notice no colon) *)
   [%%template
   let id x = x
   [@@kind k = (float32, float64, bits32, bits64)]]
@@ -85,21 +86,27 @@ bindings so that the desired template instance can be picked out by name (see [b
 ```ocaml
 module%template T_templated : sig
   val id : ('a : k). 'a @ m -> 'a @ m
-  [@@kind k = (bits32, bits64)]
-  [@@mode m = (local, global)]
+  [@@kind k = (bits32, bits64)] [@@mode m = (local, global)]
 end = struct
   let id x = x
-  [@@kind k = (bits32, bits64)]
-  [@@mode m = (local, global)]
+  [@@kind k = (bits32, bits64)] [@@mode m = (local, global)]
+  ;;
 end
 
 (* expands to *)
 
 module T_expanded : sig
   val id__bits32 : ('a : bits32). 'a @ local -> 'a @ local
-  val id__bits32__global : ('a : bits32). 'a @ global -> 'a @ global
+
+  val id__bits32__global
+    : ('a : bits32)
+    . 'a @ global -> 'a @ global
+
   val id__bits64 : ('a : bits64). 'a @ local -> 'a @ local
-  val id__bits64__global : ('a : bits64). 'a @ global -> 'a @ global
+
+  val id__bits64__global
+    : ('a : bits64)
+    . 'a @ global -> 'a @ global
 end = struct
   let id__bits32 x = x
   and id__bits32__global x = x
@@ -150,7 +157,8 @@ end
 (* expands to *)
 
 module%template T_attached = struct
-  (* floating attributes introduce a scope so that, e.g., [open]s don't bleed into later templates *)
+  (* floating attributes introduce a scope so that, e.g.,
+     [open]s don't bleed into later templates *)
   include struct
     type ('a : k) t = { x : 'a }
     [@@kind k = bits32]
@@ -229,12 +237,19 @@ avoiding dependence on the particular mangling mechanism `ppx_template` uses as 
 in the future.
 
 ```ocaml
-let%template flip (type (a : k) (b : k) (c : k)) (f : (a -> b -> c) @@ p) = fun x y -> f y x
+let%template flip
+  (type (a : k) (b : k) (c : k))
+  (f : (a -> b -> c) @@ p)
+  =
+  fun x y -> f y x
 [@@mode p = (nonportable, portable)]
 [@@kind k = (bits32, bits64)]
 
 type t : bits32
-let my_flip (f : t -> t -> t) = (flip [@mode portable] [@kind bits32]) f
+
+let my_flip (f : t -> t -> t) =
+  (flip [@mode portable] [@kind bits32]) f
+;;
 ```
 
 Notice that the mono-attributes are not required to be within a `%template` node.
@@ -251,8 +266,10 @@ is a template variable and `rhs` is a list of values to instantiate the template
 
 ```ocaml
 let%template f x = x
-[@@kind k1 = (value, bits32, bits64), k2 = (value, bits32, bits64)]
+[@@kind k1 = (value, bits32, bits64),
+        k2 = (value, bits32, bits64)]
 [@@mode m1 = (local, global), m2 = (portable, nonportable)]
+;;
 ```
 
 Mono-attributes contain a space-separated list of values that invoke the requested template.
@@ -260,8 +277,13 @@ Within each mono-attribute, the order matters (e.g. if there are multiple mode t
 but the order of neither the mono-attributes nor the poly-attributes matters:
 
 ```ocaml
-let%template apply (type a b (c : k)) (f : a @ ma -> b @ mb -> c) x y = f x y
-[@@mode ma = (contended, uncontended), mb = (contended, uncontended)]
+let%template apply
+  (type a b (c : k))
+  (f : a @ ma -> b @ mb -> c)
+  =
+  fun x y -> f x y
+[@@mode ma = (contended, uncontended),
+        mb = (contended, uncontended)]
 [@@kind k = (bits32, bits64)]
 
 type a
@@ -269,7 +291,8 @@ type b
 type c : bits32
 
 let my_apply (f : a @ contended -> b @ uncontended -> c)
-    : a @ contended -> b @ uncontended -> c =
+  : a @ contended -> b @ uncontended -> c
+  =
   (apply [@kind bits32] [@mode contended uncontended]) f
 ;;
 ```
@@ -318,10 +341,15 @@ end
 
 Grammar of poly-attribute payloads:
 ```
-# e.g. let f x = x [@@kind k1 = bits32, k2 = (value, bits32)] [@@mode local local]
+# e.g.
+# let f x = x
+# [@@kind k1 = bits32, k2 = (value, bits32)]
+# [@@mode local local]
 poly<t> ::= simple-bindings<t> | punned-bindings<t>
 
-simple-bindings<t> ::= nil | simple-binding<t> ("," simple-binding<t>)*
+simple-bindings<t> ::=
+| nil
+| simple-binding<t> ("," simple-binding<t>)*
 
 simple-binding<t> ::= pattern<t> "=" expressions<t>
 
@@ -343,7 +371,9 @@ pattern<alloc_at_mode> ::= pattern<alloc> "@" pattern<mode>
 
 Expressions:
 ```
-expressions<t> ::= expression<t> | "(" expression<t> ("," expression<t>)* ")"
+expressions<t> ::=
+| expression<t>
+| "(" expression<t> ("," expression<t>)* ")"
 
 expression<mode> ::= identifier
 
@@ -429,7 +459,9 @@ let rec map : f:('a -> 'b) -> 'a list -> 'b list =
   | hd :: tl -> f hd :: map ~f tl
 ;;
 
-let rec map_stack : f:('a -> 'b @ local) -> 'a list -> 'b list @ local =
+let rec map_stack
+  : f:('a -> 'b @ local) -> 'a list -> 'b list @ local
+  =
   fun ~f list -> exclave_
   match list with
   | [] -> []
@@ -443,32 +475,36 @@ will not natively be supported by mode polymorphism in the future. If you try to
 ppx-template's mode polymorphism, you'll get an (intentional) error:
 
 ```ocaml
-let%template rec map : f:('a -> 'b @ m) -> 'a list -> 'b list @ m =
+let%template rec map
+  : f:('a -> 'b @ m) -> 'a list -> 'b list @ m
+  =
   fun ~f list ->
-  (match list with
-   | [] -> []
-   | hd :: tl -> f hd :: (map [@mode m]) ~f tl)
-  [@exclave_if_local m]
+  match[@exclave_if_local m] list with
+  | [] -> []
+  | hd :: tl -> f hd :: (map [@mode m]) ~f tl
 [@@mode m = (local, global)]
+;;
 ;;
 ```
 ```
 Lines 3-5, characters 5-50:
 Error: ([%template]
-        "exclave_if_local is only allowed on tailcalls or syntactic
-       allocations (e.g. tuples) consisting entirely of identifiers, record
-       fields, and/or constants")
+        "exclave_if_local is only allowed on tailcalls or
+       syntactic allocations (e.g. tuples) consisting
+       entirely of identifiers, record fields, and/or
+       constants")
 ```
 
 Instead, you can use alloc polymorphism:
 
 ```ocaml
-let%template rec map : f:('a -> 'b @ m) -> 'a list -> 'b list @ m =
+let%template rec map
+  : f:('a -> 'b @ m) -> 'a list -> 'b list @ m
+  =
   fun ~f list ->
-  (match list with
-   | [] -> []
-   | hd :: tl -> f hd :: (map [@alloc a]) ~f tl)
-  [@exclave_if_stack a]
+  match[@exclave_if_stack a] list with
+  | [] -> []
+  | hd :: tl -> f hd :: (map [@alloc a]) ~f tl
 [@@alloc a @ m = (heap_global, stack_local)]
 ;;
 ```
@@ -502,9 +538,13 @@ end
 module type T = sig
   val f : 'a @ m -> 'a @ m
   [@@alloc __ @ m = (heap_global, stack_local)]
-  (* You can use [__] to ignore a template variable; this will still mangle the duplicate [f] and
-     mangle the name, but makes it clear that the alloc variable isn't used.
-     Side note: single [_] doesn't work due to how the syntax is implemented. *)
+  (* You can use [__] to ignore a template variable; this
+     will still mangle the duplicate [f] and mangle the
+     name, but makes it clear that the alloc variable isn't
+     used.
+
+     Side note: single [_] doesn't work due to how the
+     syntax is implemented. *)
 end
 ]
 ```
@@ -526,10 +566,16 @@ module F_untemplated (T1 : S1) (T2 : S2) : S3 = struct
 end
 
 (* templating without shorthand *)
-module%template [@modality p = (nonportable, portable)] F_long_hand
-    (T1 : sig include S1 @@ p end)
-    (T2 : sig include S2 @@ p end)
-  : sig include S3 @@ p end = struct
+module%template
+  [@modality p = (nonportable, portable)] F_long_hand
+    (T1 : sig
+       include S1 @@ p
+     end)
+    (T2 : sig
+       include S2 @@ p
+     end) : sig
+  include S3 @@ p
+end = struct
   (* ... *)
 end
 ```
@@ -537,7 +583,8 @@ end
 This is sufficiently common that we added a short-hand for it:
 
 ```ocaml
-module%template.portable F_short_hand (T1 : S1) (T2 : S2) : S3 = struct
+module%template.portable F_short_hand (T1 : S1) (T2 : S2) :
+  S3 = struct
   (* ... *)
 end
 ```
@@ -546,7 +593,10 @@ In structures, if you still want a name for `p` (e.g. to invoke other functors),
 you can write:
 
 ```ocaml
-module%template.portable [@modality p] F (T1 : S1) (T2 : S2) : S3 = struct
+module%template.portable
+  [@modality p] F
+    (T1 : S1)
+    (T2 : S2) : S3 = struct
   include Other_f1 [@modality p] (T1)
   include Other_f2 [@modality p] (T2)
 end
@@ -586,7 +636,8 @@ Instead, a trick for this is to write a binding which is polymorphic over exactl
 kind - for example, to bind `Float` and `Float__float64` modules, one might write:
 
 ```ocaml
-module%template [@kind __ = value] Float = Float (* alternatively, [@@kind __ = value] *)
+(* alternatively, ... = Float [@@kind __ = value] *)
+module%template [@kind __ = value] Float = Float
 module%template [@kind __ = float64] Float = Float_u
 ```
 
@@ -595,7 +646,8 @@ that a given kind variable is unused in the body of the binding. In these cases,
 prefer to use punning to avoid the extra syntax clutter:
 
 ```ocaml
-module%template [@kind value] Float = Float (* alternatively, [@@kind value] *)
+(* alternatively, ... = Float [@@kind value] *)
+module%template [@kind value] Float = Float
 module%template [@kind float64] Float = Float_u
 ```
 
@@ -645,8 +697,11 @@ module type%template A = sig
 end
 
 module type B = sig
-  type%template ('a : k) t := 'a [@@kind k = (bits64, float64)]
-  type%template nonrec 'a t = 'a t [@kind k] [@@kind k = (bits64, float64)]
+  type%template ('a : k) t := 'a
+  [@@kind k = (bits64, float64)]
+
+  type%template nonrec 'a t = 'a t [@kind k]
+  [@@kind k = (bits64, float64)]
 end
 ```
 
@@ -659,7 +714,8 @@ module type C = sig
 
   type ('a : k) t := 'a]
 
-  type%template nonrec 'a t = 'a t [@kind k] [@@kind k = (bits64, float64)]
+  type%template nonrec 'a t = 'a t [@kind k]
+  [@@kind k = (bits64, float64)]
 end
 ```
 ```
@@ -683,8 +739,11 @@ But these are not:
 
 ```ocaml
 module type B = sig
-  module type%template S := sig end [@@kind k = (bits64, float64)]
-  module type%template S = S [@kind k] [@@kind k = (bits64, float64)]
+  module type%template S := sig end
+  [@@kind k = (bits64, float64)]
+
+  module type%template S = S [@kind k]
+  [@@kind k = (bits64, float64)]
 end
 ```
 ```
@@ -699,7 +758,8 @@ module type C = sig
 
   module type S := sig end]
 
-  module type%template S = S [@kind k] [@@kind k = (bits64, float64)]
+  module type%template S = S [@kind k]
+  [@@kind k = (bits64, float64)]
 end
 ```
 ```
@@ -716,7 +776,8 @@ The ppx may behave unexpectedly when using type variables in `let` bindings. Tak
 example, the following identity function template:
 
 ```ocaml
-let%template[@kind k = (value, float64)] f (x : ('a : k)) : 'a = x
+let%template f (x : ('a : k)) : 'a = x
+[@@kind k = (value, float64)]
 ```
 ```
 Line 1, characters 49-57:
@@ -734,6 +795,7 @@ To fix this, it's recommended you use locally abstract types instead of type var
 when ranging over multiple kinds:
 
 ```ocaml
-let%template[@kind k = (value, float64)] f (type (a : k)) (x : a) : a = x
+let%template f (type (a : k)) (x : a) : a = x
+[@@kind k = (value, float64)]
 ```
 

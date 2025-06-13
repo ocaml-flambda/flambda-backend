@@ -52,7 +52,11 @@ instantiate the template for each value of the variable. Thus our two identity f
 can be written as:
 
 ```ocaml
-let%template[@mode m = (global, local)] id : 'a. 'a @ m -> 'a @ m = fun x -> x
+let%template[@mode m = (global, local)] id
+  : 'a. 'a @ m -> 'a @ m
+  =
+  fun x -> x
+;;
 ```
 
 This yields:
@@ -70,7 +74,11 @@ structure or signature item, such as `let` in the case above, `val`, `type`, `mo
 `[%%template]` syntax. In fact, the above is equivalent to:
 
 ```ocaml
-[%%template let[@mode m = (global, local)] id : 'a. 'a @ m -> 'a @ m = fun x -> x]
+[%%template let[@mode m = (global, local)] id
+  : 'a. 'a @ m -> 'a @ m
+  =
+  fun x -> x
+;;]
 ```
 
 In signatures, `[%%template: ...]` (with a colon) must be used instead.
@@ -83,7 +91,8 @@ immediately follow the keyword introducing a structure or signature item (e.g. `
 it may follow the item as a whole, though this form requires two `@` symbols:
 
 ```ocaml
-let%template id: 'a. 'a @ m -> 'a @ m = fun x -> x [@@mode m = (global, local)]
+let%template id: 'a. 'a @ m -> 'a @ m = fun x -> x
+[@@mode m = (global, local)]
 ```
 
 The `[%%template ...]` extension may also appear as an expression, such as in
@@ -119,7 +128,9 @@ variables in scope as well:
 
 
 ```ocaml
-let%template[@mode m = (global, local)] f x = (id [@mode m]) x [@exclave_if_local m]
+let%template[@mode m = (global, local)] f x =
+  (id [@mode m]) x [@exclave_if_local m]
+;;
 ```
 
 ## Kinds
@@ -131,7 +142,11 @@ define this via `ppx_template`, this time using the `[@kind]` attribute to intro
 kind variable:
 
 ```ocaml
-let%template[@kind k = (value, value & value)] id : ('a : k). 'a -> 'a = fun x -> x
+let%template[@kind k = (value, value & value)] id
+  : ('a : k). 'a -> 'a
+  =
+  fun x -> x
+;;
 ```
 
 Likewise, we could instantiate this template using the `[@kind]` attribute, such as
@@ -158,11 +173,12 @@ portable yet, but this will change over time, so we must support both cases.
 With `ppx_template`, we might express such a functor like so:
 
 ```ocaml
-module type%template [@modality p = (nonportable, portable)] F (_ : sig @@ p
+module%template F (_ : sig @@ p
     include I
   end) : sig @@ p
   include O
 end
+[@@modality p = (nonportable, portable)]
 ```
 
 However this is quite verbose, so we added a special `%template.portable` extension as
@@ -196,7 +212,10 @@ val max_inan : t @ m -> t @ m -> t @ m]
 This is functionally equivalent to:
 
 ```ocaml
-val%template[@mode m = (global, local)] min_inan : t @ m -> t @ m -> t @ m
-val%template[@mode m = (global, local)] max_inan : t @ m -> t @ m -> t @ m
+val%template min_inan : t @ m -> t @ m -> t @ m
+[@@mode m = (global, local)]
+
+val%template max_inan : t @ m -> t @ m -> t @ m
+[@@mode m = (global, local)]
 ```
 
