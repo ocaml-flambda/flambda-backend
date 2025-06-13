@@ -94,7 +94,7 @@ like int. Values of such types *mode cross* on the locality axis; they may be
 used as global even when they are local.
 
 See also the [documentation on locality and stack
-allocation](../stack-allocation/intro).
+allocation](../../stack-allocation/intro).
 
 # Modes for moving between threads {#portability-contention}
 
@@ -229,7 +229,7 @@ for effect handlers](https://ocaml.org/manual/5.3/effects.html).
 
 Yielding has different defaults depending on the locality axis: *global* values are
 defaulted to *unyielding*, while *local* values are defaulted to *yielding*.
-More documentation on mode implications is available [here](../_05-kinds/syntax.md).
+More documentation on mode implications is available [here](../../kinds/syntax).
 
 Yielding is irrelevant for types that do not contain functions, and values of such types
 *mode cross* on the yielding axis; they may be used as unyielding even

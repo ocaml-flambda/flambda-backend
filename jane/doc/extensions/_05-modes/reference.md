@@ -11,7 +11,8 @@ OxCaml.
 
 The mode system in the compiler tracks various properties of values, so that certain
 performance-enhancing operations can be performed safely. For example:
-- Locality tracks escaping. See [the local allocations reference](../../stack/reference)
+- Locality tracks escaping. See [the local allocations
+  reference](../../stack-allocation/reference)
 - Uniqueness and linearity tracks aliasing. See [the uniqueness reference](../../uniqueness/reference)
 - Portability and contention tracks inter-thread sharing.
     <!-- CR zqian: reference for portability and contention -->

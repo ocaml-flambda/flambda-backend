@@ -42,9 +42,10 @@ let delay_free : t @ unique -> (unit -> unit) @ once = fun t -> fun () -> free t
 
 These modes form two mode axes: the _uniqueness_ of a value is either `unique`
 or `aliased`, while the _affinity_ of a value is `once` or `many`. Similar to
-[locality](../../stack/intro), uniqueness and affinity are deep properties. If a
-value is at mode `unique` then all of its children are also `unique`. If a value
-is `once` then all of the closures it contains are also at mode `once`.
+[locality](../../stack-allocation/intro), uniqueness and affinity are deep
+properties. If a value is at mode `unique` then all of its children are also
+`unique`. If a value is `once` then all of the closures it contains are also at
+mode `once`.
 
 We make an exception to this rule for record fields that are annotated with a
 _modality_. Analogous to global fields, a record field that is annotated as `@@
