@@ -1146,7 +1146,11 @@ let rec approx_modtype env smty =
               ignore (Env.lookup_module_path ~use:false ~load:false
                         ~loc:lid'.loc lid'.txt env))
         constraints;
-      body
+      let init_sg = extract_sig env smty.pmty_loc body in
+      let final_sg =
+        List.fold_left (approx_with ~loc:smty.pmty_loc env) init_sg constraints
+      in
+      Mty_signature final_sg
   | Pmty_typeof smod ->
       let (_, mty) = !type_module_type_of_fwd env smod in
       mty
@@ -1162,6 +1166,103 @@ let rec approx_modtype env smty =
       in
       let aliasable = (not (Env.is_functor_arg path env)) in
       Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
+
+and approx_with ~loc env sg constr =
+  (* We must remove the destructively substituted item so it doesn't falsely
+     shadow items in the signature with the same name. In the case of module
+     substitution, we also actually perform the substitution, to avoid a
+     dangling module alias.
+
+     Because the approximated signature resulting from this function is only
+     used to resolve names in other modules in the recursive groups, we need not
+     replace dangling references to types: types can only be referenced on the
+     RHS of a type declaration, but approximated modules treat all types as
+     abstract, so there is nothing to replace.
+
+     See [testsuite/tests/typing-recmod/regression_destructive_subst.ml] for
+     examples.
+
+     CR-someday: it would be much more robust to parameterize [transl_*]
+     functions by whether or not we are approximating, so they share the same
+     logic, as it is a common source of bugs for these functions to miss some
+     behavior. *)
+  let open struct
+    type namespace = Type | Module | Module_type
+  end in
+  let rec remove_from_sg namespace path env sg =
+    let replaced_path, filtered_sg =
+      List.fold_left_map
+        (fun replaced_path item ->
+           let replaced_path', item =
+             remove_from_sig_item namespace path env sg item
+           in
+           let replaced_path =
+             match replaced_path, replaced_path' with
+             | None, None -> None
+             | Some _, None -> replaced_path
+             | None, Some _ -> replaced_path'
+             | Some _, Some _ ->
+               Misc.fatal_error
+                 "Typemod.approx_with: two signature items with the same name"
+           in
+           replaced_path, item)
+        None sg
+    in
+    replaced_path,
+    List.filter_map Fun.id filtered_sg
+  and remove_from_sig_item namespace path env sg_for_env item =
+    match path, namespace, item with
+    | [s], Type, Sig_type (id, _, _, _)
+    | [s], Module, Sig_module (id, _, _, _, _)
+    | [s], Module_type, Sig_modtype (id, _, _)
+        when Ident.name id = s ->
+      Some (Pident id), None
+    | s :: path, namespace,
+      Sig_module (id, presence, md, rs, priv)
+        when Ident.name id = s ->
+      let env = Env.add_signature sg_for_env env in
+      let sg = extract_sig env loc md.md_type in
+      let replaced_path, sg = remove_from_sg namespace path env sg in
+      let md = { md with md_type = Mty_signature sg } in
+      let replaced_path =
+        Option.map (fun path -> path_concat id path) replaced_path
+      in
+      replaced_path,
+      Some (Sig_module (id, presence, md, rs, priv))
+    | _ ->
+      None,
+      Some item
+  in
+  match constr with
+  | Pwith_typesubst (l, _) ->
+    let _replaced_path, sg =
+      remove_from_sg Type (Longident.flatten l.txt) env sg
+    in
+    sg
+  | Pwith_modsubst (l, l') ->
+    let replaced_path, sg =
+      remove_from_sg Module (Longident.flatten l.txt) env sg
+    in
+    begin match replaced_path with
+    | None -> sg
+    | Some path ->
+      let path', _, _ = Env.lookup_module ~loc l'.txt env in
+      let sub = Subst.add_module_path path path' Subst.identity in
+      Subst.signature Make_local sub sg
+    end
+  | Pwith_modtypesubst (l, smty) ->
+    let replaced_path, sg =
+      remove_from_sg Module_type (Longident.flatten l.txt) env sg
+    in
+    begin match replaced_path with
+    | None -> sg
+    | Some path ->
+      let mty = approx_modtype env smty in
+      let sub = Subst.add_modtype_path path mty Subst.identity in
+      Subst.signature Make_local sub sg
+    end
+  | Pwith_type _ | Pwith_module _ | Pwith_modtype _ ->
+    sg
 
 and approx_module_declaration env pmd =
   {
