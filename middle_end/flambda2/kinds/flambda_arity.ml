@@ -132,6 +132,22 @@ let cardinal_unarized t = List.length (unarize t)
 
 let num_params t = List.length t
 
+let group_by_parameter t l =
+  let shape = unarize_per_parameter t in
+  let rec unflatten shape l =
+    match shape, l with
+    | [], [] -> []
+    | [], _ :: _ -> Misc.fatal_error "group_by_parameter: too many arguments"
+    | [] :: shape, _ -> [] :: unflatten shape l
+    | (_ :: _) :: _, [] ->
+      Misc.fatal_error "group_by_parameter: too few arguments"
+    | (_ :: rest) :: shape, arg :: args -> (
+      match unflatten (rest :: shape) args with
+      | [] -> assert false
+      | h :: q -> (arg :: h) :: q)
+  in
+  unflatten shape l
+
 let from_lambda_list layouts =
   layouts |> List.map Component_for_creation.from_lambda |> create
 

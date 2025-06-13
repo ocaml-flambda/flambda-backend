@@ -456,7 +456,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let expr, dacc =
     match new_closure_alloc_mode_and_first_complex_local_param with
     | Bottom ->
-      Expr.create_invalid (Partial_application_mode_mismatch apply), dacc
+      ( Expr.create_invalid
+          (Partial_application_mode_mismatch (apply, callee's_code_metadata)),
+        dacc )
     | Ok (new_closure_alloc_mode, first_complex_local_param) ->
       (match closure_alloc_mode_from_type with
       | Heap_or_local -> ()
@@ -572,6 +574,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         in
         let call_kind =
           Call_kind.direct_function_call callee's_code_id apply_alloc_mode
+          (* Call_kind.indirect_function_call_known_arity apply_alloc_mode *)
         in
         let body, cost_metrics_of_body, free_names =
           (* [free_names] is going to be the free names of the whole resulting
