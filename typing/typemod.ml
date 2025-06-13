@@ -1175,12 +1175,9 @@ and approx_with ~loc env sg constr =
 
      Because the approximated signature resulting from this function is only
      used to resolve names in other modules in the recursive groups, we need not
-     replace dangling references to types or module types:
-     - The only way to depend on the contents of the module type in a sibling
-       module signature would be to use an illegal recursive module reference.
-     - Types can only be referenced on the RHS of a type declaration, but
-       approximated modules treat all types as abstract, so there is nothing to
-       replace.
+     replace dangling references to types: types can only be referenced on the
+     RHS of a type declaration, but approximated modules treat all types as
+     abstract, so there is nothing to replace.
 
      See [testsuite/tests/typing-recmod/regression_destructive_subst.ml] for
      examples.
@@ -1253,11 +1250,17 @@ and approx_with ~loc env sg constr =
       let sub = Subst.add_module_path path path' Subst.identity in
       Subst.signature Make_local sub sg
     end
-  | Pwith_modtypesubst (l, _) ->
-    let _replaced_path, sg =
+  | Pwith_modtypesubst (l, smty) ->
+    let replaced_path, sg =
       remove_from_sg Module_type (Longident.flatten l.txt) env sg
     in
-    sg
+    begin match replaced_path with
+    | None -> sg
+    | Some path ->
+      let mty = approx_modtype env smty in
+      let sub = Subst.add_modtype_path path mty Subst.identity in
+      Subst.signature Make_local sub sg
+    end
   | Pwith_type _ | Pwith_module _ | Pwith_modtype _ ->
     sg
 

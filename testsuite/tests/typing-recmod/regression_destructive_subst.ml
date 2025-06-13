@@ -52,6 +52,24 @@ module type Destructive_type_subst =
   end
 |}]
 
+(* Destructive module type substitution *)
+module type P = sig
+  module type T
+  module A:T
+end
+
+module rec X: P with module type T := sig type t end = struct
+  module A = struct type t end
+end
+and Y : sig type t = X.A.t end = struct
+   type t = X.A.t
+end
+[%%expect{|
+module type P = sig module type T module A : T end
+module rec X : sig module A : sig type t end end
+and Y : sig type t = X.A.t end
+|}]
+
 module type No_false_dangling_reference = sig
   module type S = sig
     module A : sig type t end
