@@ -198,7 +198,11 @@ let foo5_1 y =  (* Assignment of local allowed in same scope *)
 
 let () = assert Int.(equal 42 (foo5_1 42))
 [%%expect{|
-val foo5_1 : 'a -> 'a = <fun>
+Line 7, characters 17-18:
+7 |   | (x :: xs) -> x
+                     ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let foo5_2 y =  (* Assignment of local works in _local_ for loop body region *)
@@ -213,6 +217,12 @@ let foo5_2 y =  (* Assignment of local works in _local_ for loop body region *)
 let () = assert Int.(equal 42 (foo5_2 42))
 [%%expect{|
 val foo5_2 : int -> int = <fun>
+|}, Principal{|
+Line 8, characters 17-18:
+8 |   | (x :: xs) -> x
+                     ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let foo5_3 y = (* Assignment of local works in _local_ while body region *)
@@ -224,6 +234,12 @@ let foo5_3 y = (* Assignment of local works in _local_ while body region *)
   done; x
 [%%expect{|
 val foo5_3 : int -> int = <fun>
+|}, Principal{|
+Line 7, characters 8-9:
+7 |   done; x
+            ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 let foo5_4 y = (* Assign of local works in _local_ while cond region *)
@@ -234,6 +250,12 @@ let foo5_4 y = (* Assign of local works in _local_ while cond region *)
 
 [%%expect{|
 val foo5_4 : int -> int = <fun>
+|}, Principal{|
+Line 5, characters 8-9:
+5 |   done; x
+            ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 (* Test 11: binding a mutable variable shouldn't be simplified away *)
@@ -300,10 +322,7 @@ let y_13_3 =
   !x
 [%%expect{|
 val x_13_3 : int ref = {contents = 0}
-Line 3, characters 14-37:
-3 |   let mutable x @ local = ref (ref 0) in
-                  ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region.
+val y_13_3 : int ref = {contents = 0}
 |}]
 
 (* Test 14: mutable functions *)
@@ -382,4 +401,16 @@ let f () =
   x
 [%%expect{|
 val f : unit -> int = <fun>
+|}]
+
+let foo1 y =
+  let mutable x = y in
+  (x <- stack_ (10 :: x));
+  x
+[%%expect{|
+Line 4, characters 2-3:
+4 |   x
+      ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]

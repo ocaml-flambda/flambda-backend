@@ -1012,6 +1012,17 @@ let check_construct_mutability ~loc ~env mutability ?ty ?modalities block_mode =
       in
       submode ~loc ~env m0 block_mode
 
+(** Take [m0] which is the parameter to mutable, and the mode of the RHS (the
+    content expression), returns the strongest mode the mutable variable can be.
+*)
+let mutvar_mode ~loc ~env m0 exp_mode =
+  let m = Value.newvar () in
+  let mode = mode_default m in
+  let modalities = Typemode.let_mutable_modalities m0 in
+  submode ~loc ~env exp_mode (mode_modality modalities mode);
+  check_construct_mutability ~loc ~env (Mutable m0) ~modalities mode;
+  m |> Value.disallow_right
+
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
@@ -1152,7 +1163,7 @@ type pattern_variable =
     pv_id: Ident.t;
     pv_uid: Uid.t;
     pv_mode: Value.l;
-    pv_mutable: mutable_flag;
+    pv_kind : value_kind;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -1250,33 +1261,18 @@ let iter_pattern_variables_type f : pattern_variable list -> unit =
   List.iter (fun {pv_type; _} -> f pv_type)
 
 let iter_pattern_variables_type_mut ~f_immut ~f_mut pvs =
-  List.iter (fun {pv_type; pv_mutable} ->
-    match pv_mutable with
-    | Immutable -> f_immut pv_type
-    | Mutable -> f_mut pv_type) pvs
+  List.iter (fun {pv_type; pv_kind; _ } ->
+    match pv_kind with
+    | Val_mut _ -> f_mut pv_type
+    | _ -> f_immut pv_type) pvs
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var;
-          pv_mutable; pv_attributes; pv_uid} env ->
+    (fun {pv_id; pv_mode; pv_kind; pv_type; pv_loc; pv_as_var;
+          pv_attributes; pv_uid} env ->
        let check = if pv_as_var then check_as else check in
-       let kind = match pv_mutable with
-         | Immutable -> Val_reg
-         | Mutable ->
-           let m0 = Value.Comonadic.newvar () in
-           Val_mut
-             (* CR-someday let_mutable: move the sort calculation elsewhere *)
-             (m0,
-              match
-                Ctype.type_sort ~why:Jkind.History.Mutable_var_assignment
-                  ~fixed:false env pv_type
-              with
-              | Ok sort -> sort
-              | Error err -> raise(Error(pv_loc, env,
-                                         Mutable_var_not_rep(pv_type, err))))
-       in
        Env.add_value ?check ~mode:pv_mode pv_id
-         {val_type = pv_type; val_kind = kind; Types.val_loc = pv_loc;
+         {val_type = pv_type; val_kind = pv_kind; Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
           val_zero_alloc = Zero_alloc.default;
           val_uid = pv_uid
@@ -1324,7 +1320,7 @@ let add_module_variables env module_variables =
   ) env module_variables_as_list
 
 let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
-    mutable_flag ty attrs =
+    ?(kind = Val_reg) ty attrs =
   if List.exists (fun {pv_id; _} -> Ident.name pv_id = name.txt)
       tps.tps_pattern_variables
   then raise(Error(loc, Env.empty, Multiply_bound_variable name.txt));
@@ -1357,8 +1353,8 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
   let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
   tps.tps_pattern_variables <-
     {pv_id = id;
-     pv_mode = Value.disallow_right mode;
-     pv_mutable = mutable_flag;
+     pv_mode = mode;
+     pv_kind = kind;
      pv_type = ty;
      pv_loc = loc;
      pv_as_var = is_as_variable;
@@ -1950,7 +1946,7 @@ let type_for_loop_like_index ~error ~loc ~env ~param ~any ~var =
     any (Ident.create_local "_for", Uid.mk ~current_unit:(Env.get_unit_name ()))
   | Ppat_var name ->
       var ~name
-          ~pv_mode:Value.min
+          ~pv_mode:Value.(min |> disallow_right)
           ~pv_type:(instance Predef.type_int)
           ~pv_loc:loc
           ~pv_as_var:false
@@ -1978,8 +1974,8 @@ let type_for_loop_index ~loc ~env ~param =
             let pv_id = Ident.create_local txt in
             let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
             let pv =
-              { pv_id; pv_uid; pv_mode=Value.disallow_right pv_mode;
-                pv_mutable=Immutable; pv_type; pv_loc; pv_as_var;
+              { pv_id; pv_uid; pv_mode;
+                pv_kind=Val_reg; pv_type; pv_loc; pv_as_var;
                 pv_attributes }
             in
             (pv_id, pv_uid), add_pattern_variables ~check ~check_as:check env [pv])
@@ -2001,7 +1997,6 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
             pv_loc
             name
             pv_mode
-            Immutable
             pv_type
             pv_attributes)
 
@@ -2667,7 +2662,7 @@ let rec type_pat
 
 and type_pat_aux
   : type k . type_pat_state -> k pattern_category -> no_existentials:_ ->
-         alloc_mode:expected_pat_mode -> mutable_flag:_ -> penv:_ -> _ ->
+         alloc_mode:expected_pat_mode -> mutable_flag:mutable_flag -> penv:_ -> _ ->
          _ -> k general_pattern
   = fun tps category ~no_existentials ~alloc_mode ~mutable_flag ~penv sp
         expected_ty ->
@@ -2861,9 +2856,28 @@ and type_pat_aux
       let alloc_mode =
         cross_left !!penv expected_ty alloc_mode.mode
       in
+      let mode, kind =
+        match mutable_flag with
+        | Immutable -> alloc_mode, Val_reg
+        | Mutable ->
+            let m0 = Value.Comonadic.newvar () in
+            let mode = mutvar_mode ~loc ~env:!!penv m0 alloc_mode in
+            let kind =
+              Val_mut
+              (* CR-someday let_mutable: move the sort calculation elsewhere *)
+              (m0,
+              match
+                Ctype.type_sort ~why:Jkind.History.Mutable_var_assignment
+                  ~fixed:false !!penv ty
+              with
+              | Ok sort -> sort
+              | Error err -> raise(Error(loc, !!penv,
+                                          Mutable_var_not_rep(ty, err))))
+            in
+            mode, kind
+      in
       let id, uid =
-        enter_variable tps loc name alloc_mode mutable_flag ty
-          sp.ppat_attributes
+        enter_variable tps loc name mode ~kind ty sp.ppat_attributes
       in
       rvp {
         pat_desc = Tpat_var (id, name, uid, alloc_mode);
@@ -2889,7 +2903,7 @@ and type_pat_aux
           (* We're able to pass ~is_module:true here without an error because
              [Ppat_unpack] is a case identified by [may_contain_modules]. See
              the comment on [may_contain_modules]. *)
-          let id, uid = enter_variable tps loc v alloc_mode.mode mutable_flag
+          let id, uid = enter_variable tps loc v alloc_mode.mode
                           t ~is_module:true sp.ppat_attributes in
           rvp {
             pat_desc = Tpat_var (id, v, uid, alloc_mode.mode);
@@ -2905,8 +2919,8 @@ and type_pat_aux
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
       let mode = cross_left !!penv expected_ty mode in
       let id, uid =
-        enter_variable ~is_as_variable:true tps name.loc name mode mutable_flag
-          ty_var sp.ppat_attributes
+        enter_variable ~is_as_variable:true tps name.loc name mode ty_var
+          sp.ppat_attributes
       in
       rvp { pat_desc = Tpat_alias(q, id, name, uid, mode, ty_var);
             pat_loc = loc; pat_extra=[];
@@ -3209,7 +3223,7 @@ let type_pattern category ~lev ~alloc_mode env spat expected_ty allow_modules =
   (pat, !!new_penv, forces, pvs, mvs)
 
 let type_pattern_list
-    category mutable_flag no_existentials env spatl expected_tys allow_modules
+    category no_existentials env mutable_flag spatl expected_tys allow_modules
   =
   let tps = create_type_pat_state allow_modules in
   let equations_scope = get_current_level () in
@@ -5758,9 +5772,10 @@ and type_expect_
             match path with
             | Path.Pident id ->
               let modalities = Typemode.let_mutable_modalities m0 in
-              submode ~loc ~env
-                (Mode.Modality.Value.Const.apply modalities actual_mode.mode)
-                expected_mode;
+              let mode =
+                Modality.Value.Const.apply modalities actual_mode.mode
+              in
+              submode ~loc ~env mode expected_mode;
               Texp_mutvar {loc = lid.loc; txt = id}
             | _ ->
               fatal_error "Typecore.type_expect_: \
@@ -9217,25 +9232,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Nonrecursive -> None
   in
   let spatl = List.map vb_pat_constraint spat_sexp_list in
-  let spatl =
-    List.map
-      (fun spat ->
-       let attrs, pat_mode, exp_mode, spat =
-         pat_modes ~force_toplevel rec_mode_var spat
-       in
-       match (mutable_flag : mutable_flag) with
-       | Mutable ->
-         let m0 = Value.Comonadic.newvar () in
-         let mutability = Mutable m0 in
-         check_construct_mutability ~loc:spat.ppat_loc ~env
-          mutability exp_mode;
-         let modalities =
-           Typemode.transl_modalities ~maturity:Stable mutability [] in
-         let exp_mode = mode_modality modalities exp_mode in
-         attrs, pat_mode, exp_mode, spat
-       | Immutable -> attrs, pat_mode, exp_mode, spat
-      ) spatl
-  in
+  let spatl = List.map (pat_modes ~force_toplevel rec_mode_var) spatl in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 
@@ -9250,7 +9247,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           in
           let (pat_list, _new_env, _force, pvs, _mvs as res) =
             with_local_level_if is_recursive (fun () ->
-              type_pattern_list Value mutable_flag existential_context env spatl
+              type_pattern_list Value existential_context env mutable_flag spatl
                 nvs allow_modules
             ) ~post:(fun (_, _, _, pvs, _) ->
                        iter_pattern_variables_type generalize pvs)
