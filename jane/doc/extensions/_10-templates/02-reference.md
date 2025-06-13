@@ -484,7 +484,6 @@ let%template rec map
   | hd :: tl -> f hd :: (map [@mode m]) ~f tl
 [@@mode m = (local, global)]
 ;;
-;;
 ```
 ```
 Lines 3-5, characters 5-50:
@@ -545,8 +544,7 @@ module type T = sig
 
      Side note: single [_] doesn't work due to how the
      syntax is implemented. *)
-end
-]
+end]
 ```
 
 As with mode-polymorphism, the `[@@zero_alloc_if_stack a args...]` attribute conditionally
