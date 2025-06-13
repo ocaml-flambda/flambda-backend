@@ -23,10 +23,13 @@ type name_mode = t
 
 (* Semilattice:
  *
- *         Normal
- *       /      \
- *      /        \
- *  In_types   Phantom
+ *   Normal
+ *      |
+ *      |
+ *   Phantom
+ *      |
+ *      |
+ *   In_types
  *)
 
 let join_in_terms t1 t2 =
@@ -56,7 +59,8 @@ let compare_partial_order t1 t2 =
   | Normal, Normal | Phantom, Phantom | In_types, In_types -> Some 0
   | Normal, (Phantom | In_types) -> Some 1
   | (Phantom | In_types), Normal -> Some (-1)
-  | Phantom, In_types | In_types, Phantom -> None
+  | Phantom, In_types -> Some 1
+  | In_types, Phantom -> Some (-1)
 
 include Container_types.Make (struct
   type nonrec t = t
@@ -76,8 +80,8 @@ include Container_types.Make (struct
     | Normal, Normal | Phantom, Phantom | In_types, In_types -> 0
     | Normal, (Phantom | In_types) -> 1
     | (Phantom | In_types), Normal -> -1
-    | Phantom, In_types -> -1
-    | In_types, Phantom -> 1
+    | Phantom, In_types -> 1
+    | In_types, Phantom -> -1
 
   let equal t1 t2 = compare t1 t2 = 0
 end)

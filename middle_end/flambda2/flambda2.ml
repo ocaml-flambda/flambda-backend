@@ -99,8 +99,8 @@ let build_run_result unit ~free_names ~final_typing_env ~all_code slot_offsets :
   let value_slots_in_normal_projections =
     NO.value_slots_in_normal_projections free_names
   in
-  let all_function_slots = NO.all_function_slots free_names in
-  let all_value_slots = NO.all_value_slots free_names in
+  let all_function_slots = NO.all_function_slots_at_normal_mode free_names in
+  let all_value_slots = NO.all_value_slots_at_normal_mode free_names in
   let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
     let used_slots : Slot_offsets.used_slots =
       { function_slots_in_normal_projections;
