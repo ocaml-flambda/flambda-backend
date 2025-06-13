@@ -266,6 +266,9 @@ let to_const t =
     None
   | Normal { const; _ } -> Some const
 
+let from_const (const : Static_const_or_code.t) =
+  Normal { const; free_names = Static_const_or_code.free_names const }
+
 let [@ocamlformat "disable"] print ppf t =
   match t with
   | Normal { const; _ } -> Static_const_or_code.print ppf const

@@ -162,3 +162,5 @@ val match_against_bound_static_pattern :
     (closure_symbols:Symbol.t Function_slot.Lmap.t -> Set_of_closures.t -> 'a) ->
   block_like:(Symbol.t -> t -> 'a) ->
   'a
+
+val replace_vars : t -> vars_to_replace:Simple.t Variable.Map.t -> t

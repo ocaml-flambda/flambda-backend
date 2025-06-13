@@ -698,3 +698,148 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
       (Set_of_closures _ | Code _) ) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
       Bound_static.Pattern.print pat print t
+
+let replace_field_of_static_block ~vars_to_replace field =
+  let module F = Field_of_static_block in
+  match (field : F.t) with
+  | Symbol _ | Tagged_immediate _ -> field
+  | Dynamically_computed (var, dbg) -> (
+    match Variable.Map.find_opt var vars_to_replace with
+    | None -> field
+    | Some simple ->
+      Simple.pattern_match' simple
+        ~var:(fun var ~coercion:_ -> F.Dynamically_computed (var, dbg))
+        ~symbol:(fun sym ~coercion:_ -> F.Symbol sym)
+        ~const:(fun const ->
+          match Reg_width_const.descr const with
+          | Tagged_immediate imm -> F.Tagged_immediate imm
+          | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+          | Naked_nativeint _ | Naked_vec128 _ ->
+            Misc.fatal_errorf "Wrong constant for field of static block %a"
+              Reg_width_const.print const))
+
+let replace_or_variable ~vars_to_replace ~from_const or_var =
+  match (or_var : _ Or_variable.t) with
+  | Const _ -> or_var
+  | Var (var, dbg) -> (
+    match Variable.Map.find_opt var vars_to_replace with
+    | None -> or_var
+    | Some simple ->
+      Simple.pattern_match' simple
+        ~var:(fun var ~coercion:_ -> Or_variable.Var (var, dbg))
+        ~symbol:(fun sym ~coercion:_ ->
+          Misc.fatal_errorf "Unexpected symbol %a for replacing %a" Symbol.print
+            sym Variable.print var)
+        ~const:(fun const -> Or_variable.Const (from_const const)))
+
+let from_float_const (const : Reg_width_const.t) =
+  match Reg_width_const.descr const with
+  | Naked_float f -> f
+  | Naked_immediate _ | Tagged_immediate _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Naked_vec128 _ ->
+    Misc.fatal_errorf "Wrong constant type for %a (expected float)"
+      Reg_width_const.print const
+
+let from_int32_const (const : Reg_width_const.t) =
+  match Reg_width_const.descr const with
+  | Naked_int32 i -> i
+  | Naked_immediate _ | Tagged_immediate _ | Naked_float _ | Naked_int64 _
+  | Naked_nativeint _ | Naked_vec128 _ ->
+    Misc.fatal_errorf "Wrong constant type for %a (expected int32)"
+      Reg_width_const.print const
+
+let from_int64_const (const : Reg_width_const.t) =
+  match Reg_width_const.descr const with
+  | Naked_int64 i -> i
+  | Naked_immediate _ | Tagged_immediate _ | Naked_float _ | Naked_int32 _
+  | Naked_nativeint _ | Naked_vec128 _ ->
+    Misc.fatal_errorf "Wrong constant type for %a (expected int64)"
+      Reg_width_const.print const
+
+let from_nativeint_const (const : Reg_width_const.t) =
+  match Reg_width_const.descr const with
+  | Naked_nativeint i -> i
+  | Naked_immediate _ | Tagged_immediate _ | Naked_float _ | Naked_int32 _
+  | Naked_int64 _ | Naked_vec128 _ ->
+    Misc.fatal_errorf "Wrong constant type for %a (expected nativeint)"
+      Reg_width_const.print const
+
+let from_vec128_const (const : Reg_width_const.t) =
+  match Reg_width_const.descr const with
+  | Naked_vec128 v -> v
+  | Naked_immediate _ | Tagged_immediate _ | Naked_float _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ ->
+    Misc.fatal_errorf "Wrong constant type for %a (expected vec128)"
+      Reg_width_const.print const
+
+let replace_vars t ~vars_to_replace =
+  match t with
+  | Set_of_closures set ->
+    let value_slots = Set_of_closures.value_slots set in
+    let function_decls = Set_of_closures.function_decls set in
+    let alloc_mode = Set_of_closures.alloc_mode set in
+    let value_slots =
+      Value_slot.Map.map
+        (fun simple ->
+          match Simple.must_be_var simple with
+          | None -> simple
+          | Some (var, coercion) -> (
+            match Variable.Map.find_opt var vars_to_replace with
+            | None -> simple
+            | Some simple -> Simple.apply_coercion_exn simple coercion))
+        value_slots
+    in
+    Set_of_closures
+      (Set_of_closures.create ~value_slots alloc_mode function_decls)
+  | Block (tag, mut, fields) ->
+    let fields =
+      List.map (replace_field_of_static_block ~vars_to_replace) fields
+    in
+    Block (tag, mut, fields)
+  | Boxed_float contents ->
+    let contents =
+      replace_or_variable ~vars_to_replace ~from_const:from_float_const contents
+    in
+    Boxed_float contents
+  | Boxed_int32 contents ->
+    let contents =
+      replace_or_variable ~vars_to_replace ~from_const:from_int32_const contents
+    in
+    Boxed_int32 contents
+  | Boxed_int64 contents ->
+    let contents =
+      replace_or_variable ~vars_to_replace ~from_const:from_int64_const contents
+    in
+    Boxed_int64 contents
+  | Boxed_nativeint contents ->
+    let contents =
+      replace_or_variable ~vars_to_replace ~from_const:from_nativeint_const
+        contents
+    in
+    Boxed_nativeint contents
+  | Boxed_vec128 contents ->
+    let contents =
+      replace_or_variable ~vars_to_replace ~from_const:from_vec128_const
+        contents
+    in
+    Boxed_vec128 contents
+  | Immutable_float_block fields ->
+    let fields =
+      List.map
+        (replace_or_variable ~vars_to_replace ~from_const:from_float_const)
+        fields
+    in
+    Immutable_float_block fields
+  | Immutable_float_array fields ->
+    let fields =
+      List.map
+        (replace_or_variable ~vars_to_replace ~from_const:from_float_const)
+        fields
+    in
+    Immutable_float_array fields
+  | Immutable_value_array fields ->
+    let fields =
+      List.map (replace_field_of_static_block ~vars_to_replace) fields
+    in
+    Immutable_value_array fields
+  | Empty_array | Mutable_string _ | Immutable_string _ -> t

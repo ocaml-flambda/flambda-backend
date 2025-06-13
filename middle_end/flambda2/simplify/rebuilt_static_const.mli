@@ -139,6 +139,8 @@ val make_code_deleted : t -> if_code_id_is_member_of:Code_id.Set.t -> t
 (** This will return [None] if terms are not being rebuilt. *)
 val to_const : t -> Static_const_or_code.t option
 
+val from_const : Static_const_or_code.t -> t
+
 module Group : sig
   type t
 
