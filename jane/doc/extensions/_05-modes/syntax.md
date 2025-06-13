@@ -232,8 +232,8 @@ An .mli file is like a signature, but we do not write the `sig` and the
 file.
 
 ## Kinds
-Modality expressions can appear in [kinds](../kinds/intro), documented with the
-kind syntax.
+Modality expressions can appear in [kinds](../../kinds/intro), documented with
+the kind syntax.
 
 ## Modules
 Support for modules with modes is being worked on and not ready for wide adoption.

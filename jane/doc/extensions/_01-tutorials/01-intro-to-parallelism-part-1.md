@@ -1057,7 +1057,7 @@ in return, any type with such a kind gets to _cross_ certain modes, in essence
 ignoring those modes. In summary (this table isn't nearly exhaustive—see the
 [documentation on kinds] for many more modes and what kinds cross them):
 
-[documentation on kinds]: ../_06-kinds/intro
+[documentation on kinds]: ../../kinds/intro
 
 | Kind | Requirements | Crosses |
 | ---- | ------------ | ------- |
@@ -1247,7 +1247,7 @@ something more sophisticated like a lock over the whole tree, which grants a
 function `uncontended` access while the lock is held (which is safe because of
 course only one domain can hold the lock). See the [capsule API] for details.
 
-[capsule API]: ../parallelism/02-capsules
+[capsule API]: ../../parallelism/02-capsules
 
 The good news is that data-race freedom guarantees that even buggy programs can
 be reasoned about intuitively. See [Why are data races bad?].

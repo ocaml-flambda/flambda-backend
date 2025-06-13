@@ -41,7 +41,7 @@ less precise kind is expected.
 This page describes the kind system at a high level, and contains complete
 details for the non-modal bounds. It does not exhaustively describe the possible
 layouts (which are documented on the [unboxed types
-page](../../unboxed-types/index)) or the modal axes (which are documented on the
+page](../../unboxed-types/intro)) or the modal axes (which are documented on the
 [modes page](../../modes/intro)), but does explain how those components appear in
 kinds, including how the modal bounds are affected by the with-bounds.
 
@@ -83,11 +83,11 @@ floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
 registers). More detail on layouts and the unboxed types language feature can be
-found [here](../unboxed-types/index).
+found [here](../../unboxed-types/intro).
 
 Modal bounds all correspond to modal axes, which are described in more detail in
-the [modes documentation](../modes/intro). The logic for which types can cross
-on which axes is specific to each axis, often involving both the semantic
+the [modes documentation](../../modes/intro). The logic for which types can
+cross on which axes is specific to each axis, often involving both the semantic
 meaning of the mode and details of the implementation of related features in the
 OxCaml runtime. See the documentation for each mode to understand which types
 cross on its axis.
@@ -252,7 +252,7 @@ because `(int -> int) ref` mode-crosses nothing.
 ## Modalities in with-bounds
 
 Fields in a record or constructor can contain *modalities*, as described in our
-[modes documentation](../modes/intro). To get maximal mode-crossing, these
+[modes documentation](../../modes/intro). To get maximal mode-crossing, these
 modalities need to be reflected in the with-bounds as well. For example, we can
 have
 
