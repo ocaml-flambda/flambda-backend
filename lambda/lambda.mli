@@ -315,17 +315,17 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
-  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_fetch_add
-  | Patomic_add
-  | Patomic_sub
-  | Patomic_land
-  | Patomic_lor
-  | Patomic_lxor
+  | Patomic_load_field of { immediate_or_pointer : immediate_or_pointer }
+  | Patomic_set_field of { immediate_or_pointer : immediate_or_pointer }
+  | Patomic_exchange_field of { immediate_or_pointer : immediate_or_pointer }
+  | Patomic_compare_exchange_field of { immediate_or_pointer : immediate_or_pointer }
+  | Patomic_compare_set_field of { immediate_or_pointer : immediate_or_pointer }
+  | Patomic_fetch_add_field
+  | Patomic_add_field
+  | Patomic_sub_field
+  | Patomic_land_field
+  | Patomic_lor_field
+  | Patomic_lxor_field
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)

@@ -972,8 +972,6 @@ let unary_primitive env res dbg f arg =
   | End_region { ghost = true } | End_try_region { ghost = true } ->
     None, res, C.unit ~dbg
   | Get_header -> None, res, C.get_header arg dbg
-  | Atomic_load block_access_kind ->
-    None, res, C.atomic_load ~dbg (imm_or_ptr block_access_kind) arg
   | Peek kind ->
     let memory_chunk =
       K.Standard_int_or_float.to_kind_with_subkind kind
@@ -1007,17 +1005,8 @@ let binary_primitive env dbg f x y =
   | Float_comp (width, Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg width x y
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
-  | Atomic_exchange block_access_kind ->
-    C.atomic_exchange ~dbg (imm_or_ptr block_access_kind) x ~new_value:y
-  | Atomic_set block_access_kind ->
-    C.atomic_exchange ~dbg (imm_or_ptr block_access_kind) x ~new_value:y
-    |> C.return_unit dbg
-  | Atomic_int_arith Fetch_add -> C.atomic_fetch_and_add ~dbg x y
-  | Atomic_int_arith Add -> C.atomic_add ~dbg x y
-  | Atomic_int_arith Sub -> C.atomic_sub ~dbg x y
-  | Atomic_int_arith And -> C.atomic_land ~dbg x y
-  | Atomic_int_arith Or -> C.atomic_lor ~dbg x y
-  | Atomic_int_arith Xor -> C.atomic_lxor ~dbg x y
+  | Atomic_load_field block_access_kind ->
+    C.atomic_load_field ~dbg (imm_or_ptr block_access_kind) x ~field:y
   | Poke kind ->
     let memory_chunk =
       K.Standard_int_or_float.to_kind_with_subkind kind
@@ -1034,13 +1023,29 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
-  | Atomic_compare_and_set block_access_kind ->
-    C.atomic_compare_and_set ~dbg
+  | Atomic_field_int_arith op ->
+    (match op with
+     | Fetch_add -> C.atomic_fetch_and_add_field ~dbg x ~field:y z
+     | Add -> C.atomic_add_field ~dbg x ~field:y z |> C.return_unit dbg
+     | Sub -> C.atomic_sub_field ~dbg x ~field:y z |> C.return_unit dbg
+     | And -> C.atomic_land_field ~dbg x ~field:y z |> C.return_unit dbg
+     | Or -> C.atomic_lor_field ~dbg x ~field:y z |> C.return_unit dbg
+     | Xor -> C.atomic_lxor_field ~dbg x ~field:y z |> C.return_unit dbg)
+  | Atomic_set_field block_access_kind ->
+    C.atomic_exchange_field ~dbg (imm_or_ptr block_access_kind) x ~field:y ~new_value:z
+    |> C.return_unit dbg
+  | Atomic_exchange_field block_access_kind ->
+    C.atomic_exchange_field ~dbg (imm_or_ptr block_access_kind) x ~field:y ~new_value:z
+
+let quaternary_primitive _env dbg f x y z w =
+  match (f : P.quaternary_primitive) with
+  | Atomic_compare_and_set_field block_access_kind ->
+    C.atomic_compare_and_set_field ~dbg
       (imm_or_ptr block_access_kind)
-      x ~old_value:y ~new_value:z
-  | Atomic_compare_exchange { atomic_kind = _; args_kind } ->
-    C.atomic_compare_exchange ~dbg (imm_or_ptr args_kind) x ~old_value:y
-      ~new_value:z
+      x ~field:y ~old_value:z ~new_value:w
+  | Atomic_compare_exchange_field { atomic_kind = _; args_kind } ->
+    C.atomic_compare_exchange_field ~dbg (imm_or_ptr args_kind) x ~field:y ~old_value:z
+      ~new_value:w
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
@@ -1092,6 +1097,10 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
       (fun env res dbg prim x y z ->
         let cmm = ternary_primitive env dbg prim x y z in
         None, res, cmm);
+    quaternary =
+      (fun env res dbg prim x y z w ->
+        let cmm = quaternary_primitive env dbg prim x y z w in
+        None, res, cmm);
     variadic =
       (fun env res dbg prim args ->
         let cmm = variadic_primitive env dbg prim args in
@@ -1117,7 +1126,7 @@ let consider_inlining_effectful_expressions p =
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
   | Variadic ((Make_block _ | Make_array _), _) -> Some true
-  | Nullary _ | Unary _ | Binary _ | Ternary _ | Variadic _ -> None
+  | Nullary _ | Unary _ | Binary _ | Ternary _ | Quaternary _ | Variadic _ -> None
 
 let prim_simple env res dbg p =
   let consider_inlining_effectful_expressions =
@@ -1167,6 +1176,21 @@ let prim_simple env res dbg p =
     let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
+  | Quaternary (quaternary, x, y, z, w) ->
+    let To_cmm_env.{ env; res; expr = x } = arg env res x in
+    let To_cmm_env.{ env; res; expr = y } = arg env res y in
+    let To_cmm_env.{ env; res; expr = z } = arg env res z in
+    let To_cmm_env.{ env; res; expr = w } = arg env res w in
+    let free_vars =
+      Backend_var.Set.union
+        (Backend_var.Set.union
+          (Backend_var.Set.union x.free_vars y.free_vars)
+          z.free_vars)
+        w.free_vars
+    in
+    let effs = Ece.join (Ece.join (Ece.join x.effs y.effs) z.effs) w.effs in
+    let expr = quaternary_primitive env dbg quaternary x.cmm y.cmm z.cmm w.cmm in
+    Env.simple expr free_vars, None, env, res, effs
   | Variadic (variadic, l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
@@ -1202,6 +1226,14 @@ let prim_complex env res dbg p =
       let To_cmm_env.{ env; res; expr = z } = arg env res z in
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
+    | Quaternary (quaternary, x, y, z, w) ->
+      let prim' = P.Without_args.Quaternary quaternary in
+      let To_cmm_env.{ env; res; expr = x } = arg env res x in
+      let To_cmm_env.{ env; res; expr = y } = arg env res y in
+      let To_cmm_env.{ env; res; expr = z } = arg env res z in
+      let To_cmm_env.{ env; res; expr = w } = arg env res w in
+      let effs = Ece.join (Ece.join (Ece.join x.effs y.effs) z.effs) w.effs in
+      prim', [x; y; z; w], effs, env, res
     | Variadic (variadic, l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =

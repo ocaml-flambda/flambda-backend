@@ -582,7 +582,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ | Peek _ | Make_lazy _ ->
+  | Get_header | Peek _ | Make_lazy _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -607,7 +607,7 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_comp (w, c) -> Infix (Float_comp (w, c))
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
-  | Bigarray_load _ | Atomic_exchange _ | Atomic_set _ | Atomic_int_arith _
+  | Bigarray_load _ | Atomic_load_field _
   | Poke _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -644,7 +644,8 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
     let ask = fexpr_of_array_set_kind env ask in
     Array_set (ak, ask)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
-  | Bigarray_set _ | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
+  | Bigarray_set _ | Atomic_field_int_arith _ | Atomic_set_field _
+  | Atomic_exchange_field _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
@@ -670,6 +671,10 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
     Binary (binop env op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
+  | Quaternary (op, _arg1, _arg2, _arg3, _arg4) ->
+    Misc.fatal_errorf "TODO: Quaternary primitive: %a"
+      Flambda_primitive.Without_args.print
+      (Flambda_primitive.Without_args.Quaternary op)
   | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
 
 let value_slots env map =

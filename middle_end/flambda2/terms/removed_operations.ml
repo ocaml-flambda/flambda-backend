@@ -54,7 +54,9 @@ let prim (prim : Flambda_primitive.t) =
          example) are not counted here. *)
       { zero with prim = 1 })
   | Nullary _ -> zero
-  | Binary (_, _, _) | Ternary (_, _, _, _) -> { zero with prim = 1 }
+  | Binary (_, _, _)
+  | Ternary (_, _, _, _)
+  | Quaternary (_, _, _, _, _) -> { zero with prim = 1 }
   | Variadic (prim, _) -> (
     match prim with
     | Begin_region _ | Begin_try_region _ -> zero

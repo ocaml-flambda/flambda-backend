@@ -2459,44 +2459,54 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
   | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
-  | Patomic_load { immediate_or_pointer }, [[atomic]] ->
-    [ Unary
-        ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
-          atomic ) ]
-  | Patomic_set { immediate_or_pointer }, [[atomic]; [new_value]] ->
+  | Patomic_load_field { immediate_or_pointer }, [[atomic]; [field]] ->
     [ Binary
-        ( Atomic_set (convert_block_access_field_kind immediate_or_pointer),
+        ( Atomic_load_field (convert_block_access_field_kind immediate_or_pointer),
           atomic,
-          new_value ) ]
-  | Patomic_exchange { immediate_or_pointer }, [[atomic]; [new_value]] ->
-    [ Binary
-        ( Atomic_exchange (convert_block_access_field_kind immediate_or_pointer),
-          atomic,
-          new_value ) ]
-  | ( Patomic_compare_exchange { immediate_or_pointer },
-      [[atomic]; [comparison_value]; [new_value]] ) ->
-    let access_kind = convert_block_access_field_kind immediate_or_pointer in
+          field ) ]
+  | Patomic_set_field { immediate_or_pointer }, [[atomic]; [field]; [new_value]] ->
     [ Ternary
-        ( Atomic_compare_exchange
+        ( Atomic_set_field (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          field,
+          new_value ) ]
+  | Patomic_exchange_field { immediate_or_pointer }, [[atomic]; [field]; [new_value]] ->
+    [ Ternary
+        ( Atomic_exchange_field (convert_block_access_field_kind immediate_or_pointer),
+          atomic,
+          field,
+          new_value ) ]
+  | ( Patomic_compare_exchange_field { immediate_or_pointer },
+      [[atomic]; [field]; [comparison_value]; [new_value]] ) ->
+    let access_kind = convert_block_access_field_kind immediate_or_pointer in
+    [ Quaternary
+        ( Atomic_compare_exchange_field
             { atomic_kind = access_kind; args_kind = access_kind },
           atomic,
+          field,
           comparison_value,
           new_value ) ]
-  | ( Patomic_compare_set { immediate_or_pointer },
-      [[atomic]; [old_value]; [new_value]] ) ->
-    [ Ternary
-        ( Atomic_compare_and_set
+  | ( Patomic_compare_set_field { immediate_or_pointer },
+      [[atomic]; [field]; [old_value]; [new_value]] ) ->
+    [ Quaternary
+        ( Atomic_compare_and_set_field
             (convert_block_access_field_kind immediate_or_pointer),
           atomic,
+          field,
           old_value,
           new_value ) ]
-  | Patomic_fetch_add, [[atomic]; [i]] ->
-    [Binary (Atomic_int_arith Fetch_add, atomic, i)]
-  | Patomic_add, [[atomic]; [i]] -> [Binary (Atomic_int_arith Add, atomic, i)]
-  | Patomic_sub, [[atomic]; [i]] -> [Binary (Atomic_int_arith Sub, atomic, i)]
-  | Patomic_land, [[atomic]; [i]] -> [Binary (Atomic_int_arith And, atomic, i)]
-  | Patomic_lor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Or, atomic, i)]
-  | Patomic_lxor, [[atomic]; [i]] -> [Binary (Atomic_int_arith Xor, atomic, i)]
+  | Patomic_fetch_add_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith Fetch_add, atomic, field, i)]
+  | Patomic_add_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith Add, atomic, field, i)]
+  | Patomic_sub_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith Sub, atomic, field, i)]
+  | Patomic_land_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith And, atomic, field, i)]
+  | Patomic_lor_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith Or, atomic, field, i)]
+  | Patomic_lxor_field, [[atomic]; [field]; [i]] ->
+    [Ternary (Atomic_field_int_arith Xor, atomic, field, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
   | Ppoll, _ -> [Nullary Poll]
   | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
@@ -2548,7 +2558,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_vector _
       | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _
+      | Pufloatfield _ | Patomic_load_field _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Parray_element_size_in_bytes _ | Ppeek _ | Pmakelazyblock _ ),
@@ -2594,8 +2604,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
-      | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
-      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_exchange_field _ | Patomic_set_field _ | Patomic_fetch_add_field | Patomic_add_field
+      | Patomic_sub_field | Patomic_land_field | Patomic_lor_field | Patomic_lxor_field | Ppoke _
+      | Patomic_load_field _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2624,8 +2635,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
-      | Patomic_compare_exchange _ ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_set_field _
+      | Patomic_exchange_field _
+      | Patomic_fetch_add_field
+      | Patomic_add_field
+      | Patomic_sub_field
+      | Patomic_land_field
+      | Patomic_lxor_field
+      | Patomic_lor_field ),
       ( []
       | [_]
       | [_; _]
@@ -2635,6 +2652,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | [([] | _ :: _ :: _); _; _] ) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for ternary primitive \
+       %a (%a)"
+      Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
+  | ( ( Patomic_compare_exchange_field _
+      | Patomic_compare_set_field _ ),
+      ( []
+      | [_]
+      | [_; _]
+      | [_; _; _]
+      | _ :: _ :: _ :: _ :: _ :: _
+      | [_; _; _; ([] | _ :: _ :: _)]
+      | [_; _; ([] | _ :: _ :: _); _]
+      | [_; ([] | _ :: _ :: _); _; _]
+      | [([] | _ :: _ :: _); _; _; _] ) ) ->
+    Misc.fatal_errorf
+      "Closure_conversion.convert_primitive: Wrong arity for quaternary primitive \
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string

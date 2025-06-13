@@ -30,6 +30,12 @@ type expr_primitive =
       * simple_or_prim
       * simple_or_prim
       * simple_or_prim
+  | Quaternary of
+      Flambda_primitive.quaternary_primitive
+      * simple_or_prim
+      * simple_or_prim
+      * simple_or_prim
+      * simple_or_prim
   | Variadic of Flambda_primitive.variadic_primitive * simple_or_prim list
   | Checked of
       { validity_conditions : expr_primitive list;

@@ -375,7 +375,7 @@ let unary_prim_size prim =
   | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
-  | Atomic_load _ | Peek _ -> 1
+  | Peek _ -> 1
   | Make_lazy _ -> alloc_size + 1
 
 let binary_prim_size prim =
@@ -398,11 +398,7 @@ let binary_prim_size prim =
     binary_float_comp_primitive width cmp
   | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
-  | Atomic_int_arith _ -> 1
-  | Atomic_set Immediate -> 1
-  | Atomic_exchange Immediate -> 1
-  | Atomic_exchange Any_value | Atomic_set Any_value ->
-    does_not_need_caml_c_call_extcall_size
+  | Atomic_load_field _ -> 1
   | Poke _ -> 1
 
 let ternary_prim_size prim =
@@ -413,10 +409,17 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
   (* ~ 1 block_load + 1 block_set *)
-  | Atomic_compare_and_set Immediate -> 3
-  | Atomic_compare_exchange { atomic_kind = _; args_kind = Immediate } -> 1
-  | Atomic_compare_and_set Any_value
-  | Atomic_compare_exchange { atomic_kind = _; args_kind = Any_value } ->
+  | Atomic_field_int_arith _ -> 1
+  | Atomic_set_field _ -> 1
+  | Atomic_exchange_field Immediate -> 1
+  | Atomic_exchange_field Any_value -> does_not_need_caml_c_call_extcall_size
+
+let quaternary_prim_size prim =
+  match (prim : Flambda_primitive.quaternary_primitive) with
+  | Atomic_compare_and_set_field Immediate -> 3
+  | Atomic_compare_exchange_field { atomic_kind = _; args_kind = Immediate } -> 1
+  | Atomic_compare_and_set_field Any_value
+  | Atomic_compare_exchange_field { atomic_kind = _; args_kind = Any_value } ->
     does_not_need_caml_c_call_extcall_size
 
 let variadic_prim_size prim args =
@@ -435,6 +438,7 @@ let prim (prim : Flambda_primitive.t) =
   | Unary (p, _) -> unary_prim_size p
   | Binary (p, _, _) -> binary_prim_size p
   | Ternary (p, _, _, _) -> ternary_prim_size p
+  | Quaternary (p, _, _, _, _) -> quaternary_prim_size p
   | Variadic (p, args) -> variadic_prim_size p args
 
 let simple simple =
