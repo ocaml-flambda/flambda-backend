@@ -61,7 +61,7 @@ module Iterator : sig
   *)
   val create :
     ('m, 'k, 'v) is_trie ->
-    'm Leapfrog.receiver ->
-    'v Leapfrog.sender ->
+    'm Channel.receiver ->
+    'v Channel.sender ->
     'k hlist
 end

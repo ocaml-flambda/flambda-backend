@@ -103,8 +103,8 @@ module Id = struct
     | None -> Misc.fatal_error "Inconsistent type for uid."
 
   let create_iterator { is_trie; default_value; name; _ } =
-    let send_trie, recv_trie = Leapfrog.channel (Trie.empty is_trie) in
-    let send_value, recv_value = Leapfrog.channel default_value in
+    let send_trie, recv_trie = Channel.create (Trie.empty is_trie) in
+    let send_value, recv_value = Channel.create default_value in
     let iterator = Trie.Iterator.create is_trie recv_trie send_value in
     let rec get_names : type a. a Trie.Iterator.hlist -> int -> string list =
       fun (type a) (iterators : a Trie.Iterator.hlist) i : string list ->
@@ -120,8 +120,8 @@ module VM = Virtual_machine.Make (Trie.Iterator)
 
 let iter id f table =
   let send_input, it, recv_output = Id.create_iterator id in
-  Leapfrog.send send_input table;
-  VM.iter (fun keys -> f keys (Leapfrog.recv recv_output)) (VM.iterator it)
+  Channel.send send_input table;
+  VM.iter (fun keys -> f keys (Channel.recv recv_output)) (VM.iterator it)
 
 let print id ?(pp_sep = Format.pp_print_cut) pp_row ppf table =
   let first = ref true in

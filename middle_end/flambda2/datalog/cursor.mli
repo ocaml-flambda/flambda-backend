@@ -22,20 +22,20 @@ val int_repr : int value_repr
 type action
 
 val bind_iterator :
-  'a option Leapfrog.receiver with_name ->
+  'a option Channel.receiver with_name ->
   'a Trie.Iterator.t with_name ->
   action
 
 val unless :
   ('t, 'k, 'v) Table.Id.t ->
-  't Leapfrog.receiver ->
+  't Channel.receiver ->
   'k Option_receiver.hlist with_names ->
   action
 
 val unless_eq :
   'k value_repr ->
-  'k option Leapfrog.receiver with_name ->
-  'k option Leapfrog.receiver with_name ->
+  'k option Channel.receiver with_name ->
+  'k option Channel.receiver with_name ->
   action
 
 val filter :
@@ -63,7 +63,7 @@ module Level : sig
       {b Note}: This reference is set to any new value found prior to executing
       the associated actions, if any, and can thus be used in actions for this
       level or levels of later orders. *)
-  val use_output : 'a t -> 'a option Leapfrog.receiver with_name
+  val use_output : 'a t -> 'a option Channel.receiver with_name
 
   (** Actions to execute immediately after a value is found at this level. *)
   val actions : 'a t -> actions
@@ -86,7 +86,7 @@ val add_iterator :
   context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist with_names
 
 val add_naive_binder :
-  context -> ('t, 'k, 'v) Table.Id.t -> 't Leapfrog.receiver
+  context -> ('t, 'k, 'v) Table.Id.t -> 't Channel.receiver
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)

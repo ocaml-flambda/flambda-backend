@@ -29,7 +29,7 @@ struct
     | Stack_nil : nil stack
     | Stack_cons :
         'a Iterator.t
-        * 'a option Leapfrog.sender
+        * 'a option Channel.sender
         * ('a -> 's) continuation
         * 's stack
         -> ('a -> 's) stack
@@ -41,7 +41,7 @@ struct
     | Up : ('x, 's) instruction -> ('x, 'a -> 's) instruction
     | Dispatch : ('a, 'b -> 's) instruction
     | Seek :
-        'b option Leapfrog.receiver
+        'b option Channel.receiver
         * 'b Iterator.t
         * ('a, 's) instruction
         * string
@@ -49,7 +49,7 @@ struct
         -> ('a, 's) instruction
     | Open :
         'b Iterator.t
-        * 'b option Leapfrog.sender
+        * 'b option Channel.sender
         * ('a, 'b -> 's) instruction
         * ('a, 'b -> 's) instruction
         * string
@@ -128,7 +128,7 @@ struct
     match Iterator.current iterator with
     | Some current_key ->
       Iterator.accept iterator;
-      Leapfrog.send cell (Some current_key);
+      Channel.send cell (Some current_key);
       level stack
     | None -> advance next_stack
 
@@ -154,7 +154,7 @@ struct
         Iterator.init iterator;
         execute k (Stack_cons (iterator, cell, execute for_each, stack))
       | Seek (key_ref, iterator, k, _key_ref_name, _iterator_name) -> (
-        let key = Option.get (Leapfrog.recv key_ref) in
+        let key = Option.get (Channel.recv key_ref) in
         Iterator.init iterator;
         Iterator.seek iterator key;
         match Iterator.current iterator with
@@ -199,7 +199,7 @@ struct
     function
     | [] -> [], []
     | _ :: iterators ->
-      let send, recv = Leapfrog.channel None in
+      let send, recv = Channel.create None in
       let senders, receivers = channels iterators in
       send :: senders, recv :: receivers
 

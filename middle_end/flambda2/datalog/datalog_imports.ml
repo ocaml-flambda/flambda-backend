@@ -45,7 +45,7 @@ end
 
 module Option_sender = struct
   include Make (struct
-    type 'a t = 'a option Leapfrog.sender
+    type 'a t = 'a option Channel.sender
   end)
 
   let rec send : type s. s hlist -> s Constant.hlist -> unit =
@@ -53,16 +53,16 @@ module Option_sender = struct
     match refs, values with
     | [], [] -> ()
     | r :: rs, v :: vs ->
-      Leapfrog.send r (Some v);
+      Channel.send r (Some v);
       send rs vs
 end
 
 module Option_receiver = struct
   include Make (struct
-    type 'a t = 'a option Leapfrog.receiver
+    type 'a t = 'a option Channel.receiver
   end)
 
   let rec recv : type s. s hlist -> s Constant.hlist = function
     | [] -> []
-    | r :: rs -> Option.get (Leapfrog.recv r) :: recv rs
+    | r :: rs -> Option.get (Channel.recv r) :: recv rs
 end

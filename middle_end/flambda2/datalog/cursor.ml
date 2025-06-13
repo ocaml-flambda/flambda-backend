@@ -24,14 +24,14 @@ let int_repr = Int_repr
 type vm_action =
   | Unless :
       ('t, 'k, 'v) Trie.is_trie
-      * 't Leapfrog.receiver
+      * 't Channel.receiver
       * 'k Option_receiver.hlist
       * string
       * string list
       -> vm_action
   | Unless_eq :
-      'k option Leapfrog.receiver
-      * 'k option Leapfrog.receiver
+      'k option Channel.receiver
+      * 'k option Channel.receiver
       * string
       * string
       * 'k value_repr
@@ -42,7 +42,7 @@ type vm_action =
 
 type action =
   | Bind_iterator :
-      'a option Leapfrog.receiver with_name * 'a Trie.Iterator.t with_name
+      'a option Channel.receiver with_name * 'a Trie.Iterator.t with_name
       -> action
   | VM_action : vm_action -> action
 
@@ -59,7 +59,7 @@ let unless_eq repr cell1 cell2 =
 let filter f args = VM_action (Filter (f, args.values, args.names))
 
 type binder =
-  | Bind_table : ('t, 'k, 'v) Table.Id.t * 't Leapfrog.sender -> binder
+  | Bind_table : ('t, 'k, 'v) Table.Id.t * 't Channel.sender -> binder
 
 type actions = { mutable rev_actions : action list }
 
@@ -113,7 +113,7 @@ module Level = struct
       actions : actions;
       mutable iterators : 'a Trie.Iterator.t with_name list;
       mutable output :
-        ('a option Leapfrog.sender * 'a option Leapfrog.receiver) with_name
+        ('a option Channel.sender * 'a option Channel.receiver) with_name
         option
     }
 
@@ -126,7 +126,7 @@ module Level = struct
   let use_output level =
     match level.output with
     | None ->
-      let channel = Leapfrog.channel None in
+      let channel = Channel.create None in
       let output = { value = channel; name = level.name } in
       level.output <- Some output;
       { output with value = snd output.value }
@@ -200,7 +200,7 @@ let add_iterator context id =
 
 let add_naive_binder context id =
   let send_trie, recv_trie =
-    Leapfrog.channel (Trie.empty (Table.Id.is_trie id))
+    Channel.create (Trie.empty (Table.Id.is_trie id))
   in
   add_binder context.naive_binders (Bind_table (id, send_trie));
   recv_trie
@@ -266,7 +266,7 @@ let rec open_rev_vars :
         match var.output with
         | Some output -> { output with value = fst output.value }
         | None ->
-          let send, _recv = Leapfrog.channel None in
+          let send, _recv = Channel.create None in
           { value = send; name = "_" }
       in
       let iterators = List.map (fun it -> it.value) var.iterators in
@@ -332,7 +332,7 @@ let create ?(calls = []) ?output context =
 
 let bind_table (Bind_table (id, handler)) database =
   let table = Table.Map.get id database in
-  Leapfrog.send handler table;
+  Channel.send handler table;
   not (Trie.is_empty (Table.Id.is_trie id) table)
 
 let bind_table_list binders database =
@@ -344,7 +344,7 @@ let bind_cursor cursor ?(callback = ignore) db =
   cursor.callback := callback
 
 let unbind_table (Bind_table (id, handler)) =
-  Leapfrog.send handler (Trie.empty (Table.Id.is_trie id))
+  Channel.send handler (Trie.empty (Table.Id.is_trie id))
 
 let unbind_table_list binders = List.iter unbind_table binders
 
@@ -362,13 +362,13 @@ let evaluate = function
     if Option.is_some
          (Trie.find_opt is_trie
             (Option_receiver.recv args)
-            (Leapfrog.recv cell))
+            (Channel.recv cell))
     then Virtual_machine.Skip
     else Virtual_machine.Accept
   | Unless_eq (cell1, cell2, _cell1_name, _cell2_name, Int_repr) ->
     if Int.equal
-         (Option.get (Leapfrog.recv cell1))
-         (Option.get (Leapfrog.recv cell2))
+         (Option.get (Channel.recv cell1))
+         (Option.get (Channel.recv cell2))
     then Virtual_machine.Skip
     else Virtual_machine.Accept
   | Filter (f, args, _args_names) ->

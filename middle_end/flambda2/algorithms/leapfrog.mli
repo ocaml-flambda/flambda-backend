@@ -20,27 +20,6 @@
   (1) https://arxiv.org/pdf/1210.0481
 *)
 
-(** {2 Channels} *)
-
-(** A channel is really just a reference, but we use separate [sender] and
-    [receiver] types to indicate whether we expect to only write or only read to
-    a specific reference. *)
-
-type 'a sender
-
-external send : 'a sender -> 'a -> unit = "%setfield0"
-
-type 'a receiver
-
-external recv : 'a receiver -> 'a = "%field0"
-
-(** Create a pair [sender, receiver].
-
-    The value read (using [recv]) from the [receiver] is the last value that was
-    sent (using [send]) to the [sender], or the initial value provided to
-    [channel]. *)
-val channel : 'a -> 'a sender * 'a receiver
-
 (** {2 Iterators} *)
 
 module type Iterator = sig
@@ -130,7 +109,7 @@ module Map (T : Container_types.S_plus_iterator) : sig
 
        - Calling [accept] will set the [handler] reference to the current value
          of the iterator. *)
-  val create : 'a T.Map.t receiver -> 'a sender -> T.t t
+  val create : 'a T.Map.t Channel.receiver -> 'a Channel.sender -> T.t t
 end
 
 module Join (Iterator : Iterator) : sig

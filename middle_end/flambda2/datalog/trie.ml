@@ -121,12 +121,12 @@ module Iterator = struct
 
   let rec create :
       type m k v.
-      (m, k, v) is_trie -> m Leapfrog.receiver -> v Leapfrog.sender -> k hlist =
+      (m, k, v) is_trie -> m Channel.receiver -> v Channel.sender -> k hlist =
    fun is_trie this_ref value_handler ->
     match is_trie with
     | Map_is_trie -> [create_iterator this_ref value_handler]
     | Nested_trie next_trie ->
-      let send_next, recv_next = Leapfrog.channel (empty next_trie) in
+      let send_next, recv_next = Channel.create (empty next_trie) in
       create_iterator this_ref send_next
       :: create next_trie recv_next value_handler
 

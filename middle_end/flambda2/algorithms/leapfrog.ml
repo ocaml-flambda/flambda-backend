@@ -13,18 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a sender = 'a ref
-
-type 'a receiver = 'a ref
-
-let channel v =
-  let r = ref v in
-  r, r
-
-external send : 'a sender -> 'a -> unit = "%setfield0"
-
-external recv : 'a receiver -> 'a = "%field0"
-
 module type Iterator = sig
   type 'a t
 
@@ -47,8 +35,8 @@ module Map (T : Container_types.S_plus_iterator) = struct
   type _ t =
     | Iterator :
         { mutable iterator : 'v T.Map.iterator;
-          map : 'v T.Map.t receiver;
-          handler : 'v sender
+          map : 'v T.Map.t Channel.receiver;
+          handler : 'v Channel.sender
         }
         -> T.t t
 
@@ -68,12 +56,12 @@ module Map (T : Container_types.S_plus_iterator) = struct
     i.iterator <- T.Map.seek i.iterator k
 
   let init (type a) (Iterator i : a t) : unit =
-    i.iterator <- T.Map.iterator (recv i.map)
+    i.iterator <- T.Map.iterator (Channel.recv i.map)
 
   let accept (type a) (Iterator i : a t) : unit =
     match T.Map.current i.iterator with
     | None -> invalid_arg "accept: iterator is exhausted"
-    | Some (_, value) -> send i.handler value
+    | Some (_, value) -> Channel.send i.handler value
 
   let create cell handler =
     Iterator { iterator = T.Map.iterator T.Map.empty; map = cell; handler }

@@ -18,12 +18,12 @@ open Datalog_imports
 module Parameter = struct
   type 'a t =
     { name : string;
-      sender : 'a option Leapfrog.sender;
-      receiver : 'a option Leapfrog.receiver
+      sender : 'a option Channel.sender;
+      receiver : 'a option Channel.receiver
     }
 
   let create name =
-    let sender, receiver = Leapfrog.channel None in
+    let sender, receiver = Channel.create None in
     { name; sender; receiver }
 
   include Heterogenous_list.Make (struct
@@ -111,7 +111,7 @@ let rec bind_atom :
     let this_iterator = { value = this_iterator; name = this_iterator_name } in
     match this_arg with
     | Constant cte ->
-      let _send, recv = Leapfrog.channel (Some cte) in
+      let _send, recv = Channel.create (Some cte) in
       bind_iterator post_level
         { value = recv; name = "<constant>" }
         this_iterator;
@@ -160,9 +160,9 @@ let rec find_last_binding0 : type a. order:_ -> _ -> a Term.hlist -> _ =
 let find_last_binding post_level args =
   find_last_binding0 ~order:Cursor.Order.parameters post_level args
 
-let compile_term : 'a Term.t -> 'a option Leapfrog.receiver with_name = function
+let compile_term : 'a Term.t -> 'a option Channel.receiver with_name = function
   | Constant cte ->
-    let _send, recv = Leapfrog.channel (Some cte) in
+    let _send, recv = Channel.create (Some cte) in
     { value = recv; name = "<constant>" }
   | Parameter param -> { value = param.receiver; name = param.name }
   | Variable var -> Cursor.Level.use_output var

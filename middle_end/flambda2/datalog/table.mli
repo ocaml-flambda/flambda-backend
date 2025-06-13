@@ -59,9 +59,9 @@ module Id : sig
 
   val create_iterator :
     ('t, 'k, 'v) t ->
-    't Leapfrog.sender
+    't Channel.sender
     * 'k Trie.Iterator.hlist with_names
-    * 'v Leapfrog.receiver
+    * 'v Channel.receiver
 end
 
 module Map : sig
