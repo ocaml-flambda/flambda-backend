@@ -453,9 +453,6 @@ type unary_primitive =
           ocamlopt-generated code. Tag reads that are allowed to be lazy tags
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
-  | Atomic_load of Block_access_field_kind.t
-  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
-     deleting [Atomic_load] *)
   | Peek of Flambda_kind.Standard_int_or_float.t
   | Make_lazy of Lazy_block_tag.t
 
@@ -490,15 +487,6 @@ type binary_float_arith_op =
   | Mul
   | Div
 
-(** Binary atomic arithmetic operations on integers. *)
-type binary_int_atomic_op =
-  | Fetch_add
-  | Add
-  | Sub
-  | And
-  | Or
-  | Xor
-
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_set of
@@ -523,10 +511,19 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
-  | Atomic_set of Block_access_field_kind.t
-  | Atomic_exchange of Block_access_field_kind.t
-  | Atomic_int_arith of binary_int_atomic_op
+  | Atomic_load_field of Block_access_field_kind.t
+  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
+     deleting [Atomic_load_field] *)
   | Poke of Flambda_kind.Standard_int_or_float.t
+
+(** Atomic arithmetic operations on integers. *)
+type int_atomic_op =
+  | Fetch_add
+  | Add
+  | Sub
+  | And
+  | Or
+  | Xor
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -535,8 +532,14 @@ type ternary_primitive =
           for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Atomic_compare_and_set of Block_access_field_kind.t
-  | Atomic_compare_exchange of
+  | Atomic_field_int_arith of int_atomic_op
+  | Atomic_set_field of Block_access_field_kind.t
+  | Atomic_exchange_field of Block_access_field_kind.t
+
+(** Primitives taking exactly four arguments. *)
+type quaternary_primitive =
+  | Atomic_compare_and_set_field of Block_access_field_kind.t
+  | Atomic_compare_exchange_field of
       { atomic_kind : Block_access_field_kind.t;
             (** The kind of values which the atomic can hold. *)
         args_kind : Block_access_field_kind.t
@@ -566,6 +569,7 @@ type t =
   | Unary of unary_primitive * Simple.t
   | Binary of binary_primitive * Simple.t * Simple.t
   | Ternary of ternary_primitive * Simple.t * Simple.t * Simple.t
+  | Quaternary of quaternary_primitive * Simple.t * Simple.t * Simple.t * Simple.t
   | Variadic of variadic_primitive * Simple.t list
 
 type primitive_application = t
@@ -586,6 +590,7 @@ module Without_args : sig
     | Unary of unary_primitive
     | Binary of binary_primitive
     | Ternary of ternary_primitive
+    | Quaternary of quaternary_primitive
     | Variadic of variadic_primitive
 
   val print : Format.formatter -> t -> unit
@@ -604,6 +609,9 @@ val args_kind_of_binary_primitive :
 
 val args_kind_of_ternary_primitive :
   ternary_primitive -> Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
+
+val args_kind_of_quaternary_primitive :
+  quaternary_primitive -> Flambda_kind.t * Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
 
 type arg_kinds =
   | Variadic_mixed of Flambda_kind.Mixed_block_shape.t
@@ -628,6 +636,8 @@ val result_kind_of_binary_primitive : binary_primitive -> result_kind
 
 val result_kind_of_ternary_primitive : ternary_primitive -> result_kind
 
+val result_kind_of_quaternary_primitive : quaternary_primitive -> result_kind
+
 val result_kind_of_variadic_primitive : variadic_primitive -> result_kind
 
 (** Describe the kind of the result of the given primitive. *)
@@ -641,6 +651,8 @@ val result_kind_of_unary_primitive' : unary_primitive -> Flambda_kind.t
 val result_kind_of_binary_primitive' : binary_primitive -> Flambda_kind.t
 
 val result_kind_of_ternary_primitive' : ternary_primitive -> Flambda_kind.t
+
+val result_kind_of_quaternary_primitive' : quaternary_primitive -> Flambda_kind.t
 
 val result_kind_of_variadic_primitive' : variadic_primitive -> Flambda_kind.t
 
@@ -698,6 +710,8 @@ val equal_unary_primitive : unary_primitive -> unary_primitive -> bool
 val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
+
+val equal_quaternary_primitive : quaternary_primitive -> quaternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
 

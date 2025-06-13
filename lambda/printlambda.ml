@@ -880,32 +880,32 @@ let primitive ppf = function
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (locality_kind m)
-  | Patomic_load {immediate_or_pointer} ->
+  | Patomic_load_field {immediate_or_pointer } ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_load_imm"
-        | Pointer -> fprintf ppf "atomic_load_ptr")
-  | Patomic_set {immediate_or_pointer} ->
+        | Immediate -> fprintf ppf "atomic_load_field_imm"
+        | Pointer -> fprintf ppf "atomic_load_field_ptr")
+  | Patomic_set_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_set_imm"
-        | Pointer -> fprintf ppf "atomic_set_ptr")
-  | Patomic_exchange {immediate_or_pointer} ->
+        | Immediate -> fprintf ppf "atomic_set_field_imm"
+        | Pointer -> fprintf ppf "atomic_set_field_ptr")
+  | Patomic_exchange_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_exchange_imm"
-        | Pointer -> fprintf ppf "atomic_exchange_ptr")
-  | Patomic_compare_exchange {immediate_or_pointer} ->
+        | Immediate -> fprintf ppf "atomic_exchange_field_imm"
+        | Pointer -> fprintf ppf "atomic_exchange_field_ptr")
+  | Patomic_compare_exchange_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_compare_exchange_imm"
-        | Pointer -> fprintf ppf "atomic_compare_exchange_ptr")
-  | Patomic_compare_set {immediate_or_pointer} ->
+        | Immediate -> fprintf ppf "atomic_compare_exchange_field_imm"
+        | Pointer -> fprintf ppf "atomic_compare_exchange_field_ptr")
+  | Patomic_compare_set_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> fprintf ppf "atomic_compare_set_imm"
-        | Pointer -> fprintf ppf "atomic_compare_set_ptr")
-  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
-  | Patomic_add -> fprintf ppf "atomic_add"
-  | Patomic_sub -> fprintf ppf "atomic_sub"
-  | Patomic_land -> fprintf ppf "atomic_land"
-  | Patomic_lor -> fprintf ppf "atomic_lor"
-  | Patomic_lxor -> fprintf ppf "atomic_lxor"
+        | Immediate -> fprintf ppf "atomic_compare_set_field_imm"
+        | Pointer -> fprintf ppf "atomic_compare_set_field_ptr")
+  | Patomic_fetch_add_field -> fprintf ppf "atomic_fetch_add_field"
+  | Patomic_add_field -> fprintf ppf "atomic_add_field"
+  | Patomic_sub_field -> fprintf ppf "atomic_sub_field"
+  | Patomic_land_field -> fprintf ppf "atomic_land_field"
+  | Patomic_lor_field -> fprintf ppf "atomic_lor_field"
+  | Patomic_lxor_field -> fprintf ppf "atomic_lxor_field"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
   | Ppoll -> fprintf ppf "poll"
@@ -1081,32 +1081,32 @@ let name_of_primitive = function
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer _ -> "Pint_as_pointer"
-  | Patomic_load {immediate_or_pointer} ->
+  | Patomic_load_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_load_imm"
-        | Pointer -> "atomic_load_ptr")
-  | Patomic_set {immediate_or_pointer} ->
+        | Immediate -> "atomic_load_field_imm"
+        | Pointer -> "atomic_load_field_ptr")
+  | Patomic_set_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_set_imm"
-        | Pointer -> "atomic_set_ptr")
-  | Patomic_exchange {immediate_or_pointer} ->
+        | Immediate -> "atomic_set_field_imm"
+        | Pointer -> "atomic_set_field_ptr")
+  | Patomic_exchange_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_exchange_imm"
-        | Pointer -> "atomic_exchange_ptr")
-  | Patomic_compare_exchange {immediate_or_pointer} ->
+        | Immediate -> "atomic_exchange_field_imm"
+        | Pointer -> "atomic_exchange_field_ptr")
+  | Patomic_compare_exchange_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_compare_exchange_imm"
-        | Pointer -> "atomic_compare_exchange_ptr")
-  | Patomic_compare_set {immediate_or_pointer} ->
+        | Immediate -> "atomic_compare_exchange_field_imm"
+        | Pointer -> "atomic_compare_exchange_field_ptr")
+  | Patomic_compare_set_field {immediate_or_pointer} ->
       (match immediate_or_pointer with
-        | Immediate -> "atomic_compare_set_imm"
-        | Pointer -> "atomic_compare_set_ptr")
-  | Patomic_fetch_add -> "Patomic_fetch_add"
-  | Patomic_add -> "Patomic_add"
-  | Patomic_sub -> "Patomic_sub"
-  | Patomic_land -> "Patomic_land"
-  | Patomic_lor -> "Patomic_lor"
-  | Patomic_lxor -> "Patomic_lxor"
+        | Immediate -> "atomic_compare_set_field_imm"
+        | Pointer -> "atomic_compare_set_field_ptr")
+  | Patomic_fetch_add_field -> "Patomic_fetch_add_field"
+  | Patomic_add_field -> "Patomic_add_field"
+  | Patomic_sub_field -> "Patomic_sub_field"
+  | Patomic_land_field -> "Patomic_land_field"
+  | Patomic_lor_field -> "Patomic_lor_field"
+  | Patomic_lxor_field -> "Patomic_lxor_field"
   | Popaque _ -> "Popaque"
   | Prunstack -> "Prunstack"
   | Presume -> "Presume"

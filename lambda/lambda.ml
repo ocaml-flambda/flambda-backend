@@ -319,17 +319,17 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
-  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_fetch_add
-  | Patomic_add
-  | Patomic_sub
-  | Patomic_land
-  | Patomic_lor
-  | Patomic_lxor
+  | Patomic_load_field of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_set_field of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange_field of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange_field of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set_field of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_fetch_add_field
+  | Patomic_add_field
+  | Patomic_sub_field
+  | Patomic_land_field
+  | Patomic_lor_field
+  | Patomic_lxor_field
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -2070,17 +2070,17 @@ let primitive_may_allocate : primitive -> locality_mode option = function
     (* CR mshinwell: check *)
   | Ppoll ->
     Some alloc_heap
-  | Patomic_load _
-  | Patomic_set _
-  | Patomic_exchange _
-  | Patomic_compare_exchange _
-  | Patomic_compare_set _
-  | Patomic_fetch_add
-  | Patomic_add
-  | Patomic_sub
-  | Patomic_land
-  | Patomic_lor
-  | Patomic_lxor
+  | Patomic_load_field _
+  | Patomic_set_field _
+  | Patomic_exchange_field _
+  | Patomic_compare_exchange_field _
+  | Patomic_compare_set_field _
+  | Patomic_fetch_add_field
+  | Patomic_add_field
+  | Patomic_sub_field
+  | Patomic_land_field
+  | Patomic_lor_field
+  | Patomic_lxor_field
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
@@ -2245,10 +2245,10 @@ let primitive_can_raise prim =
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
-  | Patomic_exchange _ | Patomic_compare_exchange _
-  | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add
-  | Patomic_sub | Patomic_land | Patomic_lor
-  | Patomic_lxor | Patomic_load _ | Patomic_set _ -> false
+  | Patomic_exchange_field _ | Patomic_compare_exchange_field _
+  | Patomic_compare_set_field _ | Patomic_fetch_add_field  | Patomic_add_field
+  | Patomic_sub_field  | Patomic_land_field | Patomic_lor_field
+  | Patomic_lxor_field  | Patomic_load_field _ | Patomic_set_field _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -2484,27 +2484,27 @@ let primitive_result_layout (p : primitive) =
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxed_int Boxed_nativeint
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
-  | Patomic_load { immediate_or_pointer = Immediate } ->
+  | Patomic_load_field { immediate_or_pointer = Immediate } ->
     layout_int_or_null
-  | Patomic_load { immediate_or_pointer = Pointer } ->
+  | Patomic_load_field { immediate_or_pointer = Pointer } ->
     layout_any_value
-  | Patomic_set _ -> layout_unit
-  | Patomic_exchange { immediate_or_pointer = Immediate } ->
+  | Patomic_set_field _ -> layout_unit
+  | Patomic_exchange_field { immediate_or_pointer = Immediate } ->
     layout_int_or_null
-  | Patomic_exchange { immediate_or_pointer = Pointer } ->
+  | Patomic_exchange_field { immediate_or_pointer = Pointer } ->
     layout_any_value
-  | Patomic_compare_exchange { immediate_or_pointer = Immediate } ->
+  | Patomic_compare_exchange_field { immediate_or_pointer = Immediate } ->
     layout_int_or_null
-  | Patomic_compare_exchange { immediate_or_pointer = Pointer } ->
+  | Patomic_compare_exchange_field { immediate_or_pointer = Pointer } ->
     layout_any_value
-  | Patomic_compare_set _
-  | Patomic_fetch_add -> layout_int
+  | Patomic_compare_set_field _
+  | Patomic_fetch_add_field -> layout_int
   | Pdls_get -> layout_any_value
-  | Patomic_add
-  | Patomic_sub
-  | Patomic_land
-  | Patomic_lor
-  | Patomic_lxor
+  | Patomic_add_field
+  | Patomic_sub_field
+  | Patomic_land_field
+  | Patomic_lor_field
+  | Patomic_lxor_field
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int

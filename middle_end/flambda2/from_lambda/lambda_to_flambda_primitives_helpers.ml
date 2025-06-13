@@ -31,6 +31,8 @@ type expr_primitive =
   | Binary of P.binary_primitive * simple_or_prim * simple_or_prim
   | Ternary of
       P.ternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim
+  | Quaternary of
+      P.quaternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim * simple_or_prim
   | Variadic of P.variadic_primitive * simple_or_prim list
   | Checked of
       { validity_conditions : expr_primitive list;
@@ -65,6 +67,7 @@ let rec print_expr_primitive ppf expr_primitive =
   | Unary (prim, _) -> W.print ppf (Unary prim)
   | Binary (prim, _, _) -> W.print ppf (Binary prim)
   | Ternary (prim, _, _, _) -> W.print ppf (Ternary prim)
+  | Quaternary (prim, _, _, _, _) -> W.print ppf (Quaternary prim)
   | Variadic (prim, _) -> W.print ppf (Variadic prim)
   | Checked { primitive; _ } ->
     Format.fprintf ppf "@[<hov 1>(Checked@ %a)@]" print_expr_primitive primitive
@@ -246,6 +249,27 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
       bind_rec_primitive acc exn_cont ~register_const0 args2 dbg cont
     in
     bind_rec_primitive acc exn_cont ~register_const0 args3 dbg cont
+  | Quaternary (prim, args1, args2, args3, args4) ->
+    let cont acc (args4 : Simple.t list) =
+      let arg4 = must_be_singleton args4 in
+      let cont acc (args3 : Simple.t list) =
+        let arg3 = must_be_singleton args3 in
+        let cont acc (args2 : Simple.t list) =
+          let arg2 = must_be_singleton args2 in
+          let cont acc (args1 : Simple.t list) =
+            let arg1 = must_be_singleton args1 in
+            let named =
+              Named.create_prim (Quaternary (prim, arg1, arg2, arg3, arg4)) dbg
+            in
+            cont acc [named]
+          in
+          bind_rec_primitive acc exn_cont ~register_const0 args1 dbg cont
+        in
+        bind_rec_primitive acc exn_cont ~register_const0 args2 dbg cont
+      in
+      bind_rec_primitive acc exn_cont ~register_const0 args3 dbg cont
+    in
+    bind_rec_primitive acc exn_cont ~register_const0 args4 dbg cont
   | Variadic (prim, args) ->
     let cont acc args =
       let named = Named.create_prim (Variadic (prim, args)) dbg in

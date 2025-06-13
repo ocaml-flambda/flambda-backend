@@ -777,17 +777,6 @@ let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     (P.result_kind' original_prim)
     ~original_term
 
-let simplify_atomic_load (block_access_field_kind : P.Block_access_field_kind.t)
-    ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  match block_access_field_kind with
-  | Immediate ->
-    let dacc = DA.add_variable dacc result_var T.any_tagged_immediate_or_null in
-    SPR.create original_term ~try_reify:false dacc
-  | Any_value ->
-    SPR.create_unknown dacc ~result_var
-      (P.result_kind' original_prim)
-      ~original_term
-
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~field ~min_name_mode dacc
     ~original_term _dbg ~arg:block ~arg_ty:block_ty ~result_var =
@@ -989,8 +978,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | End_try_region { ghost = _ } -> simplify_end_try_region
     | Obj_dup -> simplify_obj_dup dbg
     | Get_header -> simplify_get_header ~original_prim
-    | Atomic_load block_access_field_kind ->
-      simplify_atomic_load block_access_field_kind ~original_prim
     | Peek _ -> simplify_peek ~original_prim
     | Make_lazy _ -> simplify_lazy ~original_prim
   in

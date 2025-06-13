@@ -211,6 +211,12 @@ val get_field_computed :
   Debuginfo.t ->
   expression
 
+(** [field_address_computed ptr ofs dbg] returns an expression for the address
+    at offset [ofs] (in machine words) of the block pointed to by [ptr].
+    The resulting expression is a derived pointer of type [Addr]. *)
+val field_address_computed :
+  expression -> expression -> Debuginfo.t -> expression
+
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression
 
@@ -1088,41 +1094,53 @@ val fail_if_called_indirectly_function : unit -> Cmm.phrase list
 
 (* Atomics *)
 
-val atomic_load :
-  dbg:Debuginfo.t -> Lambda.immediate_or_pointer -> expression -> expression
-
-val atomic_exchange :
+val atomic_load_field :
   dbg:Debuginfo.t ->
   Lambda.immediate_or_pointer ->
   expression ->
+  field:expression ->
+  expression
+
+val atomic_exchange_field :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  field:expression ->
   new_value:expression ->
   expression
 
-val atomic_fetch_and_add :
-  dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_fetch_and_add_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_add : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_add_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_sub_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_land : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_land_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_lor : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_lor_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_lxor : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_lxor_field :
+  dbg:Debuginfo.t -> expression -> field:expression -> expression -> expression
 
-val atomic_compare_and_set :
+val atomic_compare_and_set_field :
   dbg:Debuginfo.t ->
   Lambda.immediate_or_pointer ->
   expression ->
+  field:expression ->
   old_value:expression ->
   new_value:expression ->
   expression
 
-val atomic_compare_exchange :
+val atomic_compare_exchange_field :
   dbg:Debuginfo.t ->
   Lambda.immediate_or_pointer ->
   expression ->
+  field:expression ->
   old_value:expression ->
   new_value:expression ->
   expression
