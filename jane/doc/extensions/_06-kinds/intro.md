@@ -83,7 +83,7 @@ floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
 registers). More detail on layouts and the unboxed types language feature can be
-found [here](../../unboxed-types/index).
+found [here](../../unboxed-types/intro).
 
 Modal bounds all correspond to modal axes, which are described in more detail in
 the [modes documentation](../../modes/intro). The logic for which types can
