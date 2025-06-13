@@ -83,7 +83,7 @@ floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
 registers). More detail on layouts and the unboxed types language feature can be
-found [here](../unboxed-types/index).
+found [here](../../unboxed-types/index).
 
 Modal bounds all correspond to modal axes, which are described in more detail in
 the [modes documentation](../../modes/intro). The logic for which types can
@@ -252,7 +252,7 @@ because `(int -> int) ref` mode-crosses nothing.
 ## Modalities in with-bounds
 
 Fields in a record or constructor can contain *modalities*, as described in our
-[modes documentation](../modes/intro). To get maximal mode-crossing, these
+[modes documentation](../../modes/intro). To get maximal mode-crossing, these
 modalities need to be reflected in the with-bounds as well. For example, we can
 have
 
