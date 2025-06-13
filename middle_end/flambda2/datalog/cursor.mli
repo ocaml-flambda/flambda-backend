@@ -22,9 +22,7 @@ val int_repr : int value_repr
 type action
 
 val bind_iterator :
-  'a option Channel.receiver with_name ->
-  'a Trie.Iterator.t with_name ->
-  action
+  'a option Channel.receiver with_name -> 'a Trie.Iterator.t with_name -> action
 
 val unless :
   ('t, 'k, 'v) Table.Id.t ->
@@ -85,8 +83,7 @@ val add_new_level : context -> string -> 'a Level.t
 val add_iterator :
   context -> ('t, 'k, 'v) Table.Id.t -> 'k Trie.Iterator.hlist with_names
 
-val add_naive_binder :
-  context -> ('t, 'k, 'v) Table.Id.t -> 't Channel.receiver
+val add_naive_binder : context -> ('t, 'k, 'v) Table.Id.t -> 't Channel.receiver
 
 (** Initial actions are always executed when iterating over a cursor, before
     opening the first level. *)

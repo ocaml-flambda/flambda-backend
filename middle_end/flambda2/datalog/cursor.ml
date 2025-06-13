@@ -113,8 +113,7 @@ module Level = struct
       actions : actions;
       mutable iterators : 'a Trie.Iterator.t with_name list;
       mutable output :
-        ('a option Channel.sender * 'a option Channel.receiver) with_name
-        option
+        ('a option Channel.sender * 'a option Channel.receiver) with_name option
     }
 
   let print ppf { name; order; _ } =
@@ -360,9 +359,7 @@ let with_bound_cursor ?callback cursor db f =
 let evaluate = function
   | Unless (is_trie, cell, args, _cell_name, _args_names) ->
     if Option.is_some
-         (Trie.find_opt is_trie
-            (Option_receiver.recv args)
-            (Channel.recv cell))
+         (Trie.find_opt is_trie (Option_receiver.recv args) (Channel.recv cell))
     then Virtual_machine.Skip
     else Virtual_machine.Accept
   | Unless_eq (cell1, cell2, _cell1_name, _cell2_name, Int_repr) ->

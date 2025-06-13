@@ -60,8 +60,5 @@ module Iterator : sig
       called on the last iterator.
   *)
   val create :
-    ('m, 'k, 'v) is_trie ->
-    'm Channel.receiver ->
-    'v Channel.sender ->
-    'k hlist
+    ('m, 'k, 'v) is_trie -> 'm Channel.receiver -> 'v Channel.sender -> 'k hlist
 end
