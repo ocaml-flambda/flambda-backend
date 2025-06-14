@@ -520,12 +520,16 @@ let identchar_latin1 =
 
 let symbolchar =
   ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<' '=' '>' '?' '@' '^' '|' '~']
+let symbolchar_not_less =
+  ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '=' '>' '?' '@' '^' '|' '~']
 let dotsymbolchar =
   ['!' '$' '%' '&' '*' '+' '-' '/' ':' '=' '>' '?' '@' '^' '|']
 let symbolchar_or_hash =
   symbolchar | '#'
 let kwdopchar =
   ['$' '&' '*' '+' '-' '/' '<' '=' '>' '@' '^' '|']
+let opchar =
+  ['%' '&' '*' '.' '/' '<' '=' '?' '@' '^' '|' '~']
 
 let ident = (lowercase | uppercase) identchar*
 let extattrident = ident ('.' ident)*
@@ -745,6 +749,7 @@ rule token = parse
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }
+  | "$"  { DOLLAR }
   | "."  { DOT }
   | ".." { DOTDOT }
   | ".#" { DOTHASH }
@@ -756,6 +761,8 @@ rule token = parse
   | ";"  { SEMI }
   | ";;" { SEMISEMI }
   | "<"  { LESS }
+  | "<[" { LESSLBRACKET }
+  | "<[:" { LESSLBRACKETCOLON }
   | "<-" { LESSMINUS }
   | "="  { EQUAL }
   | "["  { LBRACKET }
@@ -791,7 +798,9 @@ rule token = parse
             { PREFIXOP op }
   | ['~' '?'] symbolchar_or_hash + as op
             { PREFIXOP op }
-  | ['=' '<' '>' '|' '&' '$'] symbolchar * as op
+  | ['=' '|' '&' '>' '<'] symbolchar * as op
+            { INFIXOP0 op }
+  | '$' symbolchar + as op
             { INFIXOP0 op }
   | "@" { AT }
   | "@@" { ATAT }
