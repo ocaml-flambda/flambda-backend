@@ -661,6 +661,15 @@ OCaml 5.2.0
   usages index
   (Ulysse Gérard, review by Gabriel Scherer and Nathanaëlle Courant)
 
+- #13286: Distinguish unique identifiers `Shape.Uid.t` according to their
+  provenance: either an implementation or an interface.
+  (Ulysse Gérard, review by Florian Angeletti and Leo White)
+
+- #13308: keep track of relations between declaration in the cmt files. This is
+  useful information for external tools for navigation and analysis purposis.
+  (Ulysse Gérard, Florian Angeletti, review by Florian Angeletti and Gabriel
+  Scherer)
+
 ### Build system:
 
 - #12198, #12321, #12586, #12616, #12706, #13048: continue the merge of the

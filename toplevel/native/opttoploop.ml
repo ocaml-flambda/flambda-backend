@@ -404,7 +404,7 @@ let execute_phrase print_outcome ppf phr =
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
       let coercion =
-        Includemod.signatures oldenv ~mark:Mark_positive
+        Includemod.signatures oldenv ~mark:true
           ~modes:(Legacy None) sg sg'
       in
       Typecore.force_delayed_checks ();

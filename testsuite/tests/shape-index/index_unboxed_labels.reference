@@ -29,35 +29,35 @@ Resolved: Index_unboxed_labels.1 :
   a (File "index_unboxed_labels.ml", line 21, characters 10-11)
 
 Uid of decls:
-Index_unboxed_labels.2:
-  b (File "index_unboxed_labels.ml", line 18, characters 19-20)
-Index_unboxed_labels.16:
-  f (File "index_unboxed_labels.ml", line 40, characters 4-5)
-Index_unboxed_labels.7:
-  f (File "index_unboxed_labels.ml", line 24, characters 4-5)
+Index_unboxed_labels.0:
+  t (File "index_unboxed_labels.ml", line 18, characters 5-6)
 Index_unboxed_labels.1:
   a (File "index_unboxed_labels.ml", line 18, characters 11-12)
-Index_unboxed_labels.13:
-  b (File "index_unboxed_labels.ml", line 35, characters 12-13)
-Index_unboxed_labels.6:
-  _y (File "index_unboxed_labels.ml", line 22, characters 4-6)
-Index_unboxed_labels.4:
-  a (File "index_unboxed_labels.ml", line 19, characters 13-14)
+Index_unboxed_labels.2:
+  b (File "index_unboxed_labels.ml", line 18, characters 19-20)
 Index_unboxed_labels.3:
   tu (File "index_unboxed_labels.ml", line 19, characters 5-7)
-Index_unboxed_labels.11:
-  f (File "index_unboxed_labels.ml", line 31, characters 4-5)
+Index_unboxed_labels.4:
+  a (File "index_unboxed_labels.ml", line 19, characters 13-14)
 Index_unboxed_labels.5:
   x (File "index_unboxed_labels.ml", line 21, characters 4-5)
+Index_unboxed_labels.6:
+  _y (File "index_unboxed_labels.ml", line 22, characters 4-6)
+Index_unboxed_labels.7:
+  f (File "index_unboxed_labels.ml", line 24, characters 4-5)
+Index_unboxed_labels.9:
+  x (File "index_unboxed_labels.ml", line 28, characters 4-5)
+Index_unboxed_labels.10:
+  _y (File "index_unboxed_labels.ml", line 29, characters 4-6)
+Index_unboxed_labels.11:
+  f (File "index_unboxed_labels.ml", line 31, characters 4-5)
+Index_unboxed_labels.12:
+  tb (File "index_unboxed_labels.ml", line 35, characters 5-7)
+Index_unboxed_labels.13:
+  b (File "index_unboxed_labels.ml", line 35, characters 12-13)
 Index_unboxed_labels.14:
   x (File "index_unboxed_labels.ml", line 37, characters 4-5)
 Index_unboxed_labels.15:
   _y (File "index_unboxed_labels.ml", line 38, characters 4-6)
-Index_unboxed_labels.12:
-  tb (File "index_unboxed_labels.ml", line 35, characters 5-7)
-Index_unboxed_labels.0:
-  t (File "index_unboxed_labels.ml", line 18, characters 5-6)
-Index_unboxed_labels.10:
-  _y (File "index_unboxed_labels.ml", line 29, characters 4-6)
-Index_unboxed_labels.9:
-  x (File "index_unboxed_labels.ml", line 28, characters 4-5)
+Index_unboxed_labels.16:
+  f (File "index_unboxed_labels.ml", line 40, characters 4-5)
