@@ -92,7 +92,10 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let get_tag_prim =
       P.Eligible_for_cse.create_get_tag ~block:(Name.var param_var)
     in
-    let denv = DE.add_cse denv get_tag_prim ~bound_to:(Simple.var tag.param) in
+    let denv =
+      DE.add_cse denv get_tag_prim ~bound_to:(Simple.var tag.param)
+        ~name_mode:Name_mode.normal
+    in
     (* Same thing for is_int *)
     let denv =
       match const_ctors with
@@ -111,6 +114,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
         in
         let denv =
           DE.add_cse denv is_int_prim ~bound_to:(Simple.var is_int.param)
+            ~name_mode:Name_mode.normal
         in
         denv
     in

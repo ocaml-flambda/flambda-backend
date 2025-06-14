@@ -155,7 +155,11 @@ val set_inlining_state : t -> Inlining_state.t -> t
 val get_inlining_state : t -> Inlining_state.t
 
 val add_cse :
-  t -> Flambda_primitive.Eligible_for_cse.t -> bound_to:Simple.t -> t
+  t ->
+  Flambda_primitive.Eligible_for_cse.t ->
+  bound_to:Simple.t ->
+  name_mode:Name_mode.t ->
+  t
 
 val find_cse : t -> Flambda_primitive.Eligible_for_cse.t -> Simple.t option
 

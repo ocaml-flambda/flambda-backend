@@ -141,6 +141,7 @@ let code loopify(never) size(97) newer_version_of(foo_0)
      | 0 -> k1 pop(regular k1) ($camlTests3__block30)
      | 1 -> k5 (prim))
     where k5 (prim) =
+      let cse_param = prim in
       let prim_1 = prim in
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result
