@@ -157,7 +157,7 @@ module Continuation_param_aliases : sig
 
   type t =
     { removed_aliased_params_and_extra_params : Variable.Set.t;
-      lets_to_introduce : Variable.t Variable.Map.t;
+      lets_to_introduce : Simple.t Variable.Map.t;
       extra_args_for_aliases : Variable.Set.t;
       recursive_continuation_wrapper : recursive_continuation_wrapper
     }

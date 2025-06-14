@@ -175,3 +175,32 @@ let did_perform_mutable_unboxing (result : T.Flow_result.t) =
          | Prim_rewrite Remove_prim -> false
          | Prim_rewrite (Invalid _ | Replace_by_binding _) -> true)
        result.mutable_unboxing_result.let_rewrites
+
+let added_useful_alias_in_loop typing_env (acc : T.Acc.t)
+    (result : T.Flow_result.t) =
+  Seq.exists2
+    (fun (k, (continuation_info : T.Continuation_info.t))
+         (k', (continuation_param_aliases : T.Continuation_param_aliases.t)) ->
+      if not (Continuation.equal k k')
+      then
+        Misc.fatal_errorf
+          "[Flow Analysis]: Mismatch beetween continuation maps for source \
+           info and continuation params alias result";
+      continuation_info.recursive
+      && Variable.Map.exists
+           (fun _var bound_to ->
+             Simple.pattern_match' bound_to
+               ~const:(fun _ -> true)
+               ~var:(fun _ ~coercion:_ ->
+                 (* variables may not be bound in the typing env at this
+                    point *)
+                 false)
+               ~symbol:(fun sym ~coercion:_ ->
+                 match
+                   Typing_env.find_or_missing typing_env (Name.symbol sym)
+                 with
+                 | None -> false
+                 | Some ty -> not (Flambda2_types.is_unknown typing_env ty)))
+           continuation_param_aliases.lets_to_introduce)
+    (Continuation.Map.to_seq acc.map)
+    (Continuation.Map.to_seq result.aliases_result.continuation_parameters)
