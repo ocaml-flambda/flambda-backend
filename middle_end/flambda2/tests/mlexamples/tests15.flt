@@ -1,16 +1,17 @@
-let $camlTests15__empty_array14 = Empty_array in
-let $camlTests15__immstring18 = "tests15.ml" in
-let $camlTests15__const_block20 = Block 0 ($camlTests15__immstring18, 2, 52)
+let $camlTests15__empty_array12 = Empty_array in
+let $camlTests15__immstring16 = "tests15.ml" in
+let $camlTests15__const_block18 = Block 0 ($camlTests15__immstring16, 2, 52)
 in
-let $camlTests15__Pmakeblock23 =
-  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block20)
+let $camlTests15__Pmakeblock21 =
+  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block18)
 in
-let $camlTests15__immstring75 = " \\ \n " in
+let $camlTests15__immstring63 = " \\ \n " in
 let code size(18)
       list_to_array_0 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : any array =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %is_int param in
   let Pisint = %Tag_imm prim in
   (let untagged = %untag_imm Pisint in
@@ -18,9 +19,9 @@ let code size(18)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      cont k ($camlTests15__empty_array14)
+      cont k ($camlTests15__empty_array12)
     where k2 =
-      cont k1 pop(regular k1) ($camlTests15__Pmakeblock23)
+      cont k1 pop(regular k1) ($camlTests15__Pmakeblock21)
 in
 let code size(18)
       is_c_1
@@ -28,9 +29,10 @@ let code size(18)
          param :
            [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
            |3 of imm tagged ])
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   (let prim = %get_tag param in
    let scrutinee_tag = %Tag_imm prim in
    let untagged = %untag_imm scrutinee_tag in
@@ -42,10 +44,11 @@ let code size(18)
       cont k (0)
 in
 let code size(6)
-      set_to_x_2 (b, i : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+      set_to_x_2 (b : val, i : imm tagged)
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %untag_imm 120 in
   let prim_1 = %num_conv (imm tagged -> imm) i in
   let Pbytessetu = %bytes_set 8 b.(prim_1) prim in
@@ -53,36 +56,40 @@ let code size(6)
 in
 let code size(3)
       classical_id_3 (b : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Pnot = %not b in
   let Pnot_1 = %not Pnot in
   cont k (Pnot_1)
 in
 let code size(9)
       swapped_4 (param : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %untag_imm 287454020 in
   let prim_1 = %int_arith imm bswap prim in
   let Pbswap16 = %Tag_imm prim_1 in
   cont k (Pbswap16)
 in
-let code size(2)
+let code size(3)
       negate_5 (x : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Pnegint = 0 - x in
   cont k (Pnegint)
 in
 let code size(2)
       foo_6 (x : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Porint = x lor 42 in
   cont k (Porint)
 in
@@ -101,7 +108,7 @@ in
       classical_id,
       swapped,
       negate,
-      $camlTests15__immstring75,
+      $camlTests15__immstring63,
       foo)
  in
  cont k (Pmakeblock))
@@ -112,7 +119,7 @@ in
     let field_3 = %block_load tag(0) size(8) (3) module_block in
     let field_4 = %block_load tag(0) size(8) (4) module_block in
     let field_5 = %block_load tag(0) size(8) (5) module_block in
-    let field_6 = $camlTests15__immstring75 in
+    let field_6 = $camlTests15__immstring63 in
     let field_7 = %block_load tag(0) size(8) (7) module_block in
     let $camlTests15 =
       Block 0 (field_0,
@@ -126,14 +133,14 @@ in
     in
     cont done ($camlTests15)
 ===>
-let $camlTests15__empty_array14 = Empty_array in
-let $camlTests15__immstring18 = "tests15.ml" in
-let $camlTests15__const_block20 = Block 0 ($camlTests15__immstring18, 2, 52)
+let $camlTests15__empty_array12 = Empty_array in
+let $camlTests15__immstring16 = "tests15.ml" in
+let $camlTests15__const_block18 = Block 0 ($camlTests15__immstring16, 2, 52)
 in
-let $camlTests15__Pmakeblock23 =
-  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block20)
+let $camlTests15__Pmakeblock21 =
+  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block18)
 in
-let $camlTests15__immstring75 = " \\ \n " in
+let $camlTests15__immstring63 = " \\ \n " in
 let code list_to_array_0 deleted in
 let code is_c_1 deleted in
 let code set_to_x_2 deleted in
@@ -143,13 +150,13 @@ let code negate_5 deleted in
 let code foo_6 deleted in
 let code loopify(never) size(11) newer_version_of(list_to_array_0)
       list_to_array_0_1 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : any array =
   let prim = %is_int param in
   switch prim
-    | 0 -> k1 pop(regular k1) ($camlTests15__Pmakeblock23)
-    | 1 -> k ($camlTests15__empty_array14)
+    | 0 -> k1 pop(regular k1) ($camlTests15__Pmakeblock21)
+    | 1 -> k ($camlTests15__empty_array12)
 in
 let $camlTests15__list_to_array_7 = closure list_to_array_0_1 @list_to_array
 in
@@ -159,7 +166,7 @@ let code loopify(never) size(14) newer_version_of(is_c_1)
          param :
            [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
            |3 of imm tagged ])
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %get_tag param in
@@ -169,8 +176,8 @@ let code loopify(never) size(14) newer_version_of(is_c_1)
 in
 let $camlTests15__is_c_8 = closure is_c_1_1 @is_c in
 let code loopify(never) size(5) newer_version_of(set_to_x_2)
-      set_to_x_2_1 (b, i : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+      set_to_x_2_1 (b : val, i : imm tagged)
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %num_conv (imm tagged -> imm) i in
@@ -180,7 +187,7 @@ in
 let $camlTests15__set_to_x_9 = closure set_to_x_2_1 @set_to_x in
 let code loopify(never) size(3) newer_version_of(classical_id_3)
       classical_id_3_1 (b : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnot = %not b in
@@ -190,15 +197,15 @@ in
 let $camlTests15__classical_id_10 = closure classical_id_3_1 @classical_id in
 let code loopify(never) size(1) newer_version_of(swapped_4)
       swapped_4_1 (param : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   cont k (17459)
 in
 let $camlTests15__swapped_11 = closure swapped_4_1 @swapped in
-let code loopify(never) size(2) newer_version_of(negate_5)
+let code loopify(never) size(3) newer_version_of(negate_5)
       negate_5_1 (x : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnegint = 0 - x in
@@ -207,7 +214,7 @@ in
 let $camlTests15__negate_12 = closure negate_5_1 @negate in
 let code loopify(never) size(2) newer_version_of(foo_6)
       foo_6_1 (x : imm tagged)
-        my_closure my_region my_ghost_region my_depth
+        my_closure _region _ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Porint = x lor 42 in
@@ -221,7 +228,7 @@ let $camlTests15 =
            $camlTests15__classical_id_10,
            $camlTests15__swapped_11,
            $camlTests15__negate_12,
-           $camlTests15__immstring75,
+           $camlTests15__immstring63,
            $camlTests15__foo_13)
 in
 cont done ($camlTests15)
