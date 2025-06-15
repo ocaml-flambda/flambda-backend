@@ -147,16 +147,20 @@ let value_descriptions ~loc env name
      match vd2.val_kind with
      | Val_prim p2 -> begin
          let locality = [ Mode.Locality.global; Mode.Locality.local ] in
-         let yielding = [ Mode.Yielding.unyielding; Mode.Yielding.yielding ] in
+         let yielding =
+            [ Mode.Yielding.unyielding
+            ; Mode.Yielding.yielding
+            ; Mode.Yielding.switching ]
+         in
          List.iter (fun loc ->
            List.iter (fun yield ->
              let ty1, _, _, _ = Ctype.instance_prim p1 vd1.val_type in
              let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
              Option.iter (Mode.Locality.equate_exn loc) mode_l2;
              Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
-             try 
+             try
                Ctype.moregeneral env true ty1 ty2
-             with Ctype.Moregen err -> 
+             with Ctype.Moregen err ->
                raise (Dont_match (Type err))
            ) yielding
          ) locality;
