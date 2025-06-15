@@ -50,7 +50,6 @@
   (address_class.h as caml/address_class.h)
   (addrmap.h as caml/addrmap.h)
   (alloc.h as caml/alloc.h)
-  (atomic_refcount.h as caml/atomic_refcount.h)
   (backtrace_prim.h as caml/backtrace_prim.h)
   (backtrace.h as caml/backtrace.h)
   (bigarray.h as caml/bigarray.h)

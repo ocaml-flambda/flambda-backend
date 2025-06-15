@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "misc.h"
+#include "camlatomic.h"
 #include "tsan.h"
 
 #ifdef __cplusplus

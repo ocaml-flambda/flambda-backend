@@ -27,7 +27,7 @@
 #include "caml/memory.h"
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
-#include "caml/atomic_refcount.h"
+#include "caml/camlatomic.h"
 
 #define int8 caml_ba_int8
 #define uint8 caml_ba_uint8
@@ -293,7 +293,7 @@ CAMLexport void caml_ba_finalize(value v)
       free(b->data);
       caml_free_dependent_memory(v, caml_ba_byte_size(b));
     } else {
-      if (caml_atomic_refcount_decr(&b->proxy->refcount) == 1) {
+      if (!caml_atomic_counter_decr(&b->proxy->refcount)) {
         free(b->proxy->data);
         caml_free_dependent_memory(v, b->proxy->size);
         free(b->proxy);
@@ -1133,12 +1133,12 @@ static void caml_ba_update_proxy(struct caml_ba_array * b1,
     /* If b1 is already a proxy for a larger array, increment refcount of
        proxy */
     b2->proxy = b1->proxy;
-    caml_atomic_refcount_incr(&b1->proxy->refcount);
+    (void)caml_atomic_counter_incr(&b1->proxy->refcount);
   } else {
     /* Otherwise, create proxy and attach it to both b1 and b2 */
     proxy = malloc(sizeof(struct caml_ba_proxy));
     if (proxy == NULL) caml_raise_out_of_memory();
-    caml_atomic_refcount_init(&proxy->refcount, 2);
+    caml_atomic_counter_init(&proxy->refcount, 2);
     /* initial refcount: 2 = original array + sub array */
     proxy->data = b1->data;
     proxy->size = caml_ba_byte_size(b1);

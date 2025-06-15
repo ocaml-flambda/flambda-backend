@@ -720,7 +720,7 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   s->unique_id = fresh_domain_unique_id();
   domain_state->unique_id = s->unique_id;
   s->running = 1;
-  atomic_fetch_add(&caml_num_domains_running, 1);
+  (void)caml_atomic_counter_incr(&caml_num_domains_running);
 
   domain_state->c_stack = NULL;
   domain_state->exn_handler = NULL;
@@ -1456,7 +1456,7 @@ static void decrement_stw_domains_still_processing(void)
      if so, clear the stw_leader to allow the new stw sections to start.
    */
   intnat am_last =
-      atomic_fetch_add(&stw_request.num_domains_still_processing, -1) == 1;
+    caml_atomic_counter_decr(&stw_request.num_domains_still_processing) == 0;
 
   if( am_last ) {
     /* release the STW lock to allow new STW sections */
@@ -1674,8 +1674,8 @@ int caml_try_run_on_all_domains_with_spin_work(
   stw_request.data = data;
   stw_request.num_domains = stw_domains.participating_domains;
   /* stw_request.barrier doesn't need resetting */
-  atomic_store_release(&stw_request.num_domains_still_processing,
-                       stw_domains.participating_domains);
+  caml_atomic_counter_init(&stw_request.num_domains_still_processing,
+                           stw_domains.participating_domains);
 
   int is_alone = stw_request.num_domains == 1;
   int should_sync = sync && !is_alone;
@@ -2159,7 +2159,7 @@ static void domain_terminate (void)
   /* This is the last thing we do because we need to be able to rely
      on caml_domain_alone (which uses caml_num_domains_running) in at least
      the shared_heap lockfree fast paths */
-  atomic_fetch_add(&caml_num_domains_running, -1);
+  (void)caml_atomic_counter_decr(&caml_num_domains_running);
 }
 
 CAMLprim value caml_ml_domain_cpu_relax(value t)
