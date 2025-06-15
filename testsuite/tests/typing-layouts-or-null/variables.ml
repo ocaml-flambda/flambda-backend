@@ -282,8 +282,7 @@ Error: Signature mismatch:
          because of the definition of f at line 4, characters 6-7.
 |}]
 
-(* CR layouts v3.0: annotations on non-rigid type variables are upper bounds.
-   This is in line with similar OCaml behavior, but is confusing. *)
+(* Annotations on *new* non-rigid type variables are exact. *)
 
 module M : sig
   val f : ('a : value_or_null) -> 'a
@@ -292,7 +291,73 @@ end = struct
 end
 
 [%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f (type a) (x : a) = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : 'a -> 'a
+       The type "'a -> 'a" is not compatible with the type "'b -> 'b"
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-36.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 8-28.
+|}]
+
+module M : sig
+  val f : ('a : value_or_null) -> 'a
+end = struct
+  let f (type a : value_or_null) (x : a) = x
+end
+[%%expect{|
 module M : sig val f : 'a -> 'a end
+|}]
+
+module M2 : sig
+  val f :  ('a : value_or_null) -> 'a -> 'a
+end = struct
+  let f (type a) (x : a) (y : a) = y
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f (type a) (x : a) (y : a) = y
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a -> 'a end
+       is not included in
+         sig val f : 'a -> 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a -> 'a
+       is not included in
+         val f : 'a -> 'a -> 'a
+       The type "'a -> 'a -> 'a" is not compatible with the type "'b -> 'b -> 'b"
+       The kind of 'a is value_or_null
+         because of the definition of f at line 2, characters 2-43.
+       But the kind of 'a must be a subkind of value
+         because of the definition of f at line 4, characters 8-36.
+|}]
+
+(* CR layouts: but if the variable first was introduced without an annotation,
+   then annotated, it's defaulted to [value]. I fear this is even more confusing.  *)
+
+module M2 : sig
+  val f : 'a -> ('a : value_or_null) -> 'a
+end = struct
+  let f (type a) (x : a) (y : a) = y
+end
+
+[%%expect{|
+module M2 : sig val f : 'a -> 'a -> 'a end
 |}]
 
 (* GADTs and constraints tests. *)
@@ -358,9 +423,6 @@ type succeeds = (int dummy) constrained
 type succeeds = int dummy constrained
 |}]
 
-(* CR layouts v3.0: we can't set a variable on the right side of
-   the constraint to be [maybe_null]. This might be hard to fix, see
-   [Note about [new_var_jkind]]. *)
 type ('c : value_or_null) constrained' = bool
   constraint 'c = ('a : value_or_null) dummy
 
@@ -368,17 +430,10 @@ type ('c : value_or_null) constrained' = bool
 type 'b constrained' = bool constraint 'b = 'a dummy
 |}]
 
-type fails = (t_value_or_null dummy) constrained'
+type works = (t_value_or_null dummy) constrained'
 
 [%%expect{|
-Line 1, characters 14-35:
-1 | type fails = (t_value_or_null dummy) constrained'
-                  ^^^^^^^^^^^^^^^^^^^^^
-Error: This type "t_value_or_null dummy" should be an instance of type "'a dummy"
-       The kind of t_value_or_null is value_or_null
-         because of the definition of t_value_or_null at line 1, characters 0-36.
-       But the kind of t_value_or_null must be a subkind of value
-         because of the definition of constrained' at lines 1-2, characters 0-44.
+type works = t_value_or_null dummy constrained'
 |}]
 
 (* Copied from the tree, should work. *)
